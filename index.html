@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    >
+
+    <title>Telegram Web App</title>
+
+    <!-- Telegram Web App -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- TON Connect UI -->
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: var(--tg-theme-bg-color, #f2f2f2);
+            color: var(--tg-theme-text-color, #222);
+        }
+
+        .container {
+            max-width: 420px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--tg-theme-secondary-bg-color, #ffffff);
+            border-radius: 18px;
+            padding: 24px;
+            margin-bottom: 15px;
+        }
+
+        .profile {
+            text-align: center;
+        }
+
+        .avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            display: none;
+            margin: 0 auto 15px;
+        }
+
+        .name {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        .username {
+            color: #888;
+            margin-bottom: 20px;
+        }
+
+        .info {
+            text-align: left;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(128,128,128,0.15);
+        }
+
+        .row:last-child {
+            border-bottom: none;
+        }
+
+        .label {
+            color: #888;
+        }
+
+        .value {
+            font-weight: 500;
+            text-align: right;
+            word-break: break-all;
+        }
+
+        h3 {
+            margin-top: 0;
+        }
+
+        #ton-connect {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .wallet-info {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 12px;
+            background: rgba(128,128,128,0.1);
+            display: none;
+        }
+
+        .wallet-address {
+            font-size: 13px;
+            word-break: break-all;
+            margin-top: 8px;
+        }
+
+        .status {
+            margin-top: 12px;
+            font-size: 14px;
+            color: #777;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- Telegram profile -->
+    <div class="card profile">
+
+        <img id="avatar" class="avatar">
+
+        <div id="name" class="name">
+            Загрузка...
+        </div>
+
+        <div id="username" class="username">
+            @username
+        </div>
+
+        <div class="info">
+
+            <div class="row">
+                <span class="label">Telegram ID</span>
+                <span id="userId" class="value">—</span>
+            </div>
+
+            <div class="row">
+                <span class="label">Язык</span>
+                <span id="language" class="value">—</span>
+            </div>
+
+            <div class="row">
+                <span class="label">Premium</span>
+                <span id="premium" class="value">—</span>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- TON Wallet -->
+    <div class="card">
+
+        <h3>💎 TON Wallet</h3>
+
+        <div id="ton-connect"></div>
+
+        <div id="walletInfo" class="wallet-info">
+
+            <div>
+                <strong>Кошелёк подключён</strong>
+            </div>
+
+            <div class="wallet-address" id="walletAddress">
+                —
+            </div>
+
+            <div class="status" id="walletStatus">
+                Подключено
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    /* ==========================================
+       TELEGRAM
+    ========================================== */
+
+    const tg = window.Telegram.WebApp;
+
+    tg.ready();
+    tg.expand();
+
+    const user = tg.initDataUnsafe?.user;
+
+    if (user) {
+
+        const fullName = [
+            user.first_name,
+            user.last_name
+        ]
+        .filter(Boolean)
+        .join(" ");
+
+        document.getElementById("name").textContent =
+            fullName || "Пользователь Telegram";
+
+
+        document.getElementById("username").textContent =
+            user.username
+                ? "@" + user.username
+                : "Username отсутствует";
+
+
+        document.getElementById("userId").textContent =
+            user.id;
+
+
+        document.getElementById("language").textContent =
+            user.language_code || "не указан";
+
+
+        document.getElementById("premium").textContent =
+            user.is_premium ? "Да" : "Нет";
+
+
+        if (user.photo_url) {
+
+            const avatar =
+                document.getElementById("avatar");
+
+            avatar.src = user.photo_url;
+            avatar.style.display = "block";
+        }
+
+    } else {
+
+        document.getElementById("name").textContent =
+            "Откройте приложение через Telegram";
+
+        document.getElementById("username").textContent =
+            "";
+    }
+
+
+    /* ==========================================
+       TON CONNECT
+    ========================================== */
+
+    /*
+       ВАЖНО:
+
+       Здесь должен быть URL твоего
+       tonconnect-manifest.json.
+    */
+
+    const tonConnectUI =
+        new TON_CONNECT_UI.TonConnectUI({
+
+            manifestUrl:
+                "https://YOUR-DOMAIN.com/tonconnect-manifest.json",
+
+            buttonRootId:
+                "ton-connect",
+
+            restoreConnection:
+                true
+        });
+
+
+    /*
+       Русский интерфейс TON Connect
+    */
+
+    tonConnectUI.uiOptions = {
+        language: "ru"
+    };
+
+
+    /* ==========================================
+       СОСТОЯНИЕ КОШЕЛЬКА
+    ========================================== */
+
+    tonConnectUI.onStatusChange(wallet => {
+
+        const walletInfo =
+            document.getElementById("walletInfo");
+
+        const walletAddress =
+            document.getElementById("walletAddress");
+
+        const walletStatus =
+            document.getElementById("walletStatus");
+
+
+        if (wallet) {
+
+            walletInfo.style.display = "block";
+
+
+            /*
+               Адрес кошелька
+            */
+
+            walletAddress.textContent =
+                wallet.account.address;
+
+
+            /*
+               Название подключенного кошелька
+               Например Tonkeeper
+            */
+
+            let walletName = "TON Wallet";
+
+            if (
+                wallet.device &&
+                wallet.device.appName
+            ) {
+                walletName =
+                    wallet.device.appName;
+            }
+
+
+            walletStatus.textContent =
+                "Подключено через " + walletName;
+
+        } else {
+
+            walletInfo.style.display = "none";
+
+        }
+
+    });
+
+
+</script>
+
+</body>
+</html>
