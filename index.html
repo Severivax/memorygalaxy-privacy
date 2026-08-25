@@ -95,6 +95,10 @@
             color: var(--tg-theme-button-color, #0088cc);
         }
         
+        .status.error {
+            color: #e74c3c;
+        }
+        
         .button {
             margin-top: 16px;
             width: 100%;
@@ -123,6 +127,16 @@
             text-align: center;
             margin-top: 12px;
             font-family: monospace;
+        }
+        
+        .dev-badge {
+            background: #ff6b6b;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            display: inline-block;
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -161,14 +175,89 @@
         <div class="status" id="statusMessage">Инициализация...</div>
         <button class="button" id="closeButton">Закрыть</button>
         <div class="user-id" id="rawDataDisplay"></div>
+        <div style="text-align: center;">
+            <span class="dev-badge" id="envBadge">🌐 Режим разработки</span>
+        </div>
     </div>
 
     <script>
+        // ============================================
+        // ЭМУЛЯЦИЯ TELEGRAM WEB APP ДЛЯ РАЗРАБОТКИ
+        // ============================================
+        
+        // Создаем эмуляцию Telegram Web App, если она не существует
+        if (!window.Telegram) {
+            window.Telegram = {};
+        }
+        
+        if (!window.Telegram.WebApp) {
+            console.log('🔧 Эмуляция Telegram Web App активирована');
+            
+            // Эмулируем данные пользователя для тестирования
+            const mockUser = {
+                id: 123456789,
+                first_name: 'Иван',
+                last_name: 'Петров',
+                username: 'ivan_petrov',
+                language_code: 'ru',
+                is_premium: true,
+                allows_write_to_pm: true
+            };
+            
+            window.Telegram.WebApp = {
+                initData: 'query_id=AAHdF6IQAAAAAN0XohDhrOrc&user=' + encodeURIComponent(JSON.stringify(mockUser)) + '&auth_date=1735123456&hash=abc123def456',
+                initDataUnsafe: {
+                    user: mockUser,
+                    query_id: 'AAHdF6IQAAAAAN0XohDhrOrc',
+                    auth_date: '1735123456',
+                    hash: 'abc123def456'
+                },
+                themeParams: {
+                    bg_color: '#ffffff',
+                    text_color: '#000000',
+                    hint_color: '#999999',
+                    link_color: '#0088cc',
+                    button_color: '#0088cc',
+                    button_text_color: '#ffffff',
+                    secondary_bg_color: '#f0f0f0'
+                },
+                expand: function() {
+                    console.log('📱 WebApp expanded');
+                },
+                ready: function() {
+                    console.log('✅ WebApp ready');
+                },
+                close: function() {
+                    console.log('❌ WebApp closed');
+                    alert('Приложение закрыто (эмуляция)');
+                },
+                onEvent: function(event, callback) {
+                    console.log(`📡 Event registered: ${event}`);
+                },
+                sendData: function(data) {
+                    console.log('📤 Data sent:', data);
+                }
+            };
+            
+            // Добавляем индикатор режима разработки
+            document.getElementById('envBadge').textContent = '🔧 Режим разработки (эмуляция)';
+            document.getElementById('envBadge').style.background = '#ff6b6b';
+        } else {
+            document.getElementById('envBadge').textContent = '🚀 Telegram Web App';
+            document.getElementById('envBadge').style.background = '#2ecc71';
+        }
+        
+        // ============================================
+        // ОСНОВНАЯ ЛОГИКА ПРИЛОЖЕНИЯ
+        // ============================================
+        
         // Инициализация Telegram Web App
         const tg = window.Telegram.WebApp;
         
         // Расширяем приложение на весь экран
-        tg.expand();
+        if (tg.expand) {
+            tg.expand();
+        }
         
         // Получаем данные пользователя
         const user = tg.initDataUnsafe?.user;
@@ -189,7 +278,7 @@
         function updateUserInfo(userData) {
             if (!userData) {
                 statusMessageEl.textContent = '❌ Данные пользователя не найдены';
-                statusMessageEl.className = 'status';
+                statusMessageEl.className = 'status error';
                 return;
             }
             
@@ -221,58 +310,68 @@
             statusMessageEl.textContent = '✅ Данные успешно загружены';
             statusMessageEl.className = 'status ready';
             
-            // Показываем сырые данные для отладки (можно убрать в продакшене)
-            rawDataDisplayEl.textContent = `Raw: ${tg.initData || 'Нет данных'}`;
+            // Показываем сырые данные для отладки
+            rawDataDisplayEl.textContent = `Raw: ${tg.initData ? tg.initData.substring(0, 50) + '...' : 'Нет данных'}`;
             
             // Отправляем событие о готовности
-            tg.ready();
+            if (tg.ready) {
+                tg.ready();
+            }
         }
         
         // Проверяем наличие данных
         if (user) {
+            console.log('👤 Данные пользователя получены:', user);
             updateUserInfo(user);
         } else {
+            console.warn('⚠️ Данные пользователя отсутствуют');
+            
             // Пробуем получить данные через initData
             const initData = tg.initData;
             if (initData) {
                 try {
-                    // Парсим query string
                     const params = new URLSearchParams(initData);
                     const userParam = params.get('user');
                     if (userParam) {
                         const parsedUser = JSON.parse(decodeURIComponent(userParam));
+                        console.log('👤 Данные распарсены из initData:', parsedUser);
                         updateUserInfo(parsedUser);
                     } else {
                         statusMessageEl.textContent = '❌ Данные пользователя отсутствуют';
-                        statusMessageEl.className = 'status';
+                        statusMessageEl.className = 'status error';
                     }
                 } catch (e) {
+                    console.error('Ошибка парсинга:', e);
                     statusMessageEl.textContent = '❌ Ошибка парсинга данных';
-                    statusMessageEl.className = 'status';
-                    console.error('Parse error:', e);
+                    statusMessageEl.className = 'status error';
                 }
             } else {
                 statusMessageEl.textContent = '❌ Данные пользователя недоступны';
-                statusMessageEl.className = 'status';
+                statusMessageEl.className = 'status error';
             }
         }
         
         // Обработчик кнопки закрытия
         document.getElementById('closeButton').addEventListener('click', () => {
-            tg.close();
+            if (tg.close) {
+                tg.close();
+            } else {
+                alert('Приложение закрыто (эмуляция)');
+            }
         });
         
         // Обработка изменения темы
-        tg.onEvent('themeChanged', () => {
-            // Тема обновляется автоматически через CSS переменные
-            console.log('Theme changed');
-        });
+        if (tg.onEvent) {
+            tg.onEvent('themeChanged', () => {
+                console.log('🎨 Тема изменена');
+            });
+        }
         
         // Логируем информацию для отладки
-        console.log('Telegram Web App initialized');
-        console.log('User data:', user);
-        console.log('Init data:', tg.initData);
-        console.log('Theme params:', tg.themeParams);
+        console.log('📱 Telegram Web App инициализирован');
+        console.log('👤 Данные пользователя:', user);
+        console.log('📋 Init data:', tg.initData);
+        console.log('🎨 Параметры темы:', tg.themeParams);
     </script>
 </body>
 </html>
