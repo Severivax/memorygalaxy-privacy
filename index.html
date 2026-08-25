@@ -164,6 +164,69 @@
         .balance-refresh:active {
             transform: scale(0.9);
         }
+
+        /* ======= ОПЛАТА ======= */
+        .payment-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(128,128,128,0.15);
+        }
+
+        .payment-section > .label {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .payment-input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(128,128,128,0.2);
+            background: var(--tg-theme-bg-color, #fff);
+            color: var(--tg-theme-text-color, #222);
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .payment-input:focus {
+            border-color: var(--tg-theme-button-color, #0088cc);
+        }
+
+        .pay-btn {
+            width: 100%;
+            margin-top: 12px;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            background: var(--tg-theme-button-color, #0088cc);
+            color: var(--tg-theme-button-text-color, #fff);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        .pay-btn:active {
+            transform: scale(0.98);
+        }
+
+        .pay-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .payment-section a {
+            word-break: break-all;
+        }
+
+        #transactionStatus {
+            margin-top: 12px;
+            font-size: 14px;
+            min-height: 20px;
+            line-height: 1.5;
+        }
     </style>
 </head>
 
@@ -223,7 +286,7 @@
                 —
             </div>
 
-            <!-- НОВЫЙ БЛОК: БАЛАНС -->
+            <!-- БАЛАНС -->
             <div class="balance-box">
                 <div>
                     <span class="label">Баланс</span>
@@ -235,6 +298,24 @@
                 <button class="balance-refresh" id="refreshBalance" title="Обновить">
                     🔄
                 </button>
+            </div>
+
+            <!-- ОПЛАТА -->
+            <div class="payment-section">
+                <div class="label">Адрес получателя</div>
+                <input 
+                    type="text" 
+                    id="recipientAddress" 
+                    class="payment-input" 
+                    placeholder="UQ..."
+                    autocomplete="off"
+                >
+
+                <button id="payBtn" class="pay-btn">
+                    Оплатить 0.0001 TON
+                </button>
+
+                <div class="status" id="transactionStatus"></div>
             </div>
 
             <div class="status" id="walletStatus">
@@ -335,7 +416,7 @@
 
 
     /* ==========================================
-       ПОЛУЧЕНИЕ БАЛАНСА (через tonapi.io)
+       ПОЛУЧЕНИЕ БАЛАНСА
     ========================================== */
 
     async function fetchBalance(address) {
@@ -354,10 +435,9 @@
 
             const data = await res.json();
 
-            const nano = BigInt(data.balance);          // в нано-TON
-            const ton  = Number(nano) / 1e9;            // в TON
+            const nano = BigInt(data.balance);
+            const ton  = Number(nano) / 1e9;
 
-            // Красивое форматирование
             const formatted = ton.toLocaleString("ru-RU", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 6
@@ -370,6 +450,92 @@
             console.error("Не удалось получить баланс:", err);
             balanceEl.textContent = "Ошибка";
             nanoEl.textContent    = "не удалось загрузить";
+        }
+    }
+
+
+    /* ==========================================
+       ОТПРАВКА ПЛАТЕЖА
+    ========================================== */
+
+    async function sendPayment() {
+        const recipientInput = document.getElementById("recipientAddress");
+        const statusEl       = document.getElementById("transactionStatus");
+        const btn            = document.getElementById("payBtn");
+
+        const recipient = recipientInput.value.trim();
+
+        // Валидация
+        if (!recipient) {
+            statusEl.textContent = "❌ Укажите адрес получателя";
+            statusEl.style.color = "#e74c3c";
+            return;
+        }
+
+        if (!currentAddress) {
+            statusEl.textContent = "❌ Сначала подключите кошелёк";
+            statusEl.style.color = "#e74c3c";
+            return;
+        }
+
+        // Блокируем кнопку
+        btn.disabled    = true;
+        btn.textContent = "⏳ Отправка...";
+        statusEl.textContent = "Подтвердите транзакцию в кошельке...";
+        statusEl.style.color = "#0088cc";
+
+        try {
+            // 0.0001 TON = 100000 нано-TON
+            const transaction = {
+                validUntil: Math.floor(Date.now() / 1000) + 60,
+                messages: [
+                    {
+                        address: recipient,
+                        amount: "100000"
+                    }
+                ]
+            };
+
+            const result = await tonConnectUI.sendTransaction(transaction);
+
+            // Успех
+            const txHash = result.boc
+                ? JSON.parse(
+                    atob(
+                        result.boc.split(":")[0] || ""
+                    )
+                ).hash || ""
+                : "";
+
+            statusEl.innerHTML =
+                `✅ Транзакция отправлена!<br>` +
+                `<a href="https://tonviewer.com/transaction/${result.boc}" target="_blank" style="color: #0088cc;">` +
+                `Посмотреть в tonviewer</a>`;
+            statusEl.style.color = "#27ae60";
+
+            // Обновляем баланс через 5 секунд
+            setTimeout(() => {
+                if (currentAddress) fetchBalance(currentAddress);
+            }, 5000);
+
+        } catch (err) {
+            console.error("Ошибка транзакции:", err);
+
+            if (
+                err.message &&
+                (
+                    err.message.includes("reject") ||
+                    err.message.includes("Reject")
+                )
+            ) {
+                statusEl.textContent = "❌ Транзакция отклонена пользователем";
+            } else {
+                statusEl.textContent = "❌ Ошибка: " + (err.message || "неизвестная");
+            }
+            statusEl.style.color = "#e74c3c";
+        } finally {
+            btn.disabled    = false;
+            btn.textContent = "Оплатить 0.0001 TON";
         }
     }
 
@@ -401,7 +567,6 @@
 
             walletStatus.textContent = "Подключено через " + walletName;
 
-            // Загружаем баланс при подключении
             fetchBalance(currentAddress);
 
         } else {
@@ -414,11 +579,25 @@
     });
 
 
-    /* Кнопка "Обновить" */
+    /* ==========================================
+       ОБРАБОТЧИКИ
+    ========================================== */
+
     document.getElementById("refreshBalance")
         .addEventListener("click", () => {
             if (currentAddress) {
                 fetchBalance(currentAddress);
+            }
+        });
+
+    document.getElementById("payBtn")
+        .addEventListener("click", sendPayment);
+
+    /* Отправка по Enter */
+    document.getElementById("recipientAddress")
+        .addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                sendPayment();
             }
         });
 
