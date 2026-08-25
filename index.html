@@ -173,6 +173,17 @@
         .badge-mainnet { background: #d4f5e9; color: #27ae60; }
         .badge-testnet { background: #fdecea; color: #e74c3c; }
 
+        .testnet-warning {
+            margin-top: 10px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #fdecea;
+            border: 1px solid #e74c3c;
+            color: #c0392b;
+            font-size: 13px;
+            display: none;
+        }
+
         .pay-btn {
             width: 100%;
             margin-top: 12px;
@@ -250,6 +261,13 @@
             <div><strong>Кошелёк подключён</strong></div>
             <div class="wallet-address" id="walletAddress">—</div>
 
+            <!-- ПРЕДУПРЕЖДЕНИЕ О ТЕСТНЕТЕ -->
+            <div class="testnet-warning" id="testnetWarning">
+                ⚠️ Кошелёк подключён в <b>testnet</b>.<br>
+                Оплата реальными TON недоступна.<br>
+                Переключите кошелёк на <b>mainnet</b> в настройках.
+            </div>
+
             <div class="balance-box">
                 <div>
                     <span class="label">Баланс</span>
@@ -270,9 +288,8 @@
                     spellcheck="false"
                 >
 
-                <!-- Показывает сеть подключённого кошелька -->
-                <div class="network-info" id="networkInfo">
-                    Сеть: <span class="badge" id="networkBadge">—</span>
+                <div class="network-info">
+                    Сеть кошелька: <span class="badge" id="networkBadge">—</span>
                 </div>
 
                 <button id="payBtn" class="pay-btn">
@@ -322,7 +339,7 @@
 
 
     /* ==========================================
-       TON CONNECT
+       TON CONNECT (только MAINNET)
     ========================================== */
 
     const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
@@ -351,36 +368,26 @@
         el.style.color = color;
     }
 
-    /* Простая валидация адреса TON */
-    function isValidTonAddress(address) {
+    /* Валидация адреса только для MAINNET */
+    function isValidMainnetAddress(address) {
         if (!address) return false;
         const trimmed = address.trim();
 
-        // user-friendly: 48 символов, начинается на EQ/UQ/kQ/...
-        if (/^[A-Za-z0-9\-_]{48}$/.test(trimmed)) return true;
+        // User-friendly mainnet: 48 символов, начинается на UQ или EQ
+        if (/^(UQ|EQ)[A-Za-z0-9\-_]{46}$/.test(trimmed)) return true;
 
-        // raw: hex:hex (64 hex символа после двоеточия)
-        if (/^(-1|0):[0-9a-fA-F]{64}$/.test(trimmed)) return true;
+        // Raw mainnet: 0:hex (64 hex-символа)
+        if (/^0:[0-9a-fA-F]{64}$/.test(trimmed)) return true;
 
-        return false;
-    }
-
-    function isTestnetAddress(address) {
-        const trimmed = address.trim();
-        // Raw testnet адреса начинаются с kQ (или -1:)
-        // User-friendly testnet адреса не так легко отличить без библиотеки,
-        // поэтому ориентируемся на raw-формат и префикс kQ
-        if (/^kQ[A-Za-z0-9\-_]{46}$/.test(trimmed)) return true;
-        if (/^-1:[0-9a-fA-F]{64}$/.test(trimmed)) return true;
         return false;
     }
 
 
     /* ==========================================
-       ПОЛУЧЕНИЕ БАЛАНСА
+       ПОЛУЧЕНИЕ БАЛАНСА (только MAINNET)
     ========================================== */
 
-    async function fetchBalance(address, isTestnet = false) {
+    async function fetchBalance(address) {
         const balanceEl = document.getElementById("walletBalance");
         const nanoEl    = document.getElementById("walletBalanceNano");
 
@@ -388,8 +395,7 @@
         nanoEl.textContent    = "";
 
         try {
-            const host = isTestnet ? "testnet.tonapi.io" : "tonapi.io";
-            const res = await fetch(`https://${host}/v2/accounts/${address}`);
+            const res = await fetch(`https://tonapi.io/v2/accounts/${address}`);
 
             if (!res.ok) throw new Error("Ошибка API: " + res.status);
 
@@ -414,7 +420,7 @@
 
 
     /* ==========================================
-       ОТПРАВКА ПЛАТЕЖА
+       ОТПРАВКА ПЛАТЕЖА (только MAINNET)
     ========================================== */
 
     async function sendPayment() {
@@ -429,29 +435,24 @@
             return;
         }
 
-        // 2. Валидация адреса
-        if (!recipient) {
-            showTxStatus("❌ Укажите адрес получателя", "#e74c3c");
-            return;
-        }
-
-        if (!isValidTonAddress(recipient)) {
+        // 2. Проверка сети кошелька — только mainnet
+        if (currentWallet?.account?.chain === "testnet") {
             showTxStatus(
-                "❌ Неверный формат адреса.<br>Адрес должен быть 48 символов (UQ/EQ...) или в raw-формате.",
+                "❌ Кошелёк в testnet. Переключитесь на mainnet.",
                 "#e74c3c"
             );
             return;
         }
 
-        // 3. Проверка совпадения сетей
-        const walletIsTestnet = currentWallet?.account?.chain === "testnet";
-        const addressIsTestnet = isTestnetAddress(recipient);
+        // 3. Валидация адреса — только mainnet
+        if (!recipient) {
+            showTxStatus("❌ Укажите адрес получателя", "#e74c3c");
+            return;
+        }
 
-        if (walletIsTestnet !== addressIsTestnet) {
+        if (!isValidMainnetAddress(recipient)) {
             showTxStatus(
-                `❌ Адрес и кошелёк в разных сетях!<br>` +
-                `Кошелёк: <b>${walletIsTestnet ? "testnet" : "mainnet"}</b><br>` +
-                `Адрес: <b>${addressIsTestnet ? "testnet" : "mainnet"}</b>`,
+                "❌ Неверный адрес для mainnet.<br>Адрес должен начинаться на <b>UQ</b> или <b>EQ</b> (48 символов).",
                 "#e74c3c"
             );
             return;
@@ -465,7 +466,7 @@
 
         try {
             const transaction = {
-                validUntil: Math.floor(Date.now() / 1000) + 300, // 5 минут
+                validUntil: Math.floor(Date.now() / 1000) + 300,
                 messages: [
                     {
                         address: recipient,
@@ -478,20 +479,15 @@
             const result = await tonConnectUI.sendTransaction(transaction);
             logDebug("Успех! BOC: " + (result?.boc?.slice(0, 40) || "нет"));
 
-            // Ссылка на обозреватель
-            const explorer = walletIsTestnet
-                ? "https://testnet.tonviewer.com"
-                : "https://tonviewer.com";
-
             showTxStatus(
                 `✅ Транзакция отправлена!<br>` +
-                `<a href="${explorer}/transaction/${result.boc}" target="_blank">` +
-                `Посмотреть в обозревателе ↗</a>`,
+                `<a href="https://tonviewer.com/transaction/${result.boc}" target="_blank">` +
+                `Посмотреть в tonviewer ↗</a>`,
                 "#27ae60"
             );
 
             setTimeout(() => {
-                if (currentAddress) fetchBalance(currentAddress, walletIsTestnet);
+                if (currentAddress) fetchBalance(currentAddress);
             }, 5000);
 
         } catch (err) {
@@ -533,11 +529,13 @@
     let currentWallet  = null;
 
     tonConnectUI.onStatusChange(wallet => {
-        const walletInfo    = document.getElementById("walletInfo");
-        const walletAddress = document.getElementById("walletAddress");
-        const walletStatus  = document.getElementById("walletStatus");
-        const networkBadge  = document.getElementById("networkBadge");
-        const debugEl       = document.getElementById("debugLog");
+        const walletInfo      = document.getElementById("walletInfo");
+        const walletAddress   = document.getElementById("walletAddress");
+        const walletStatus    = document.getElementById("walletStatus");
+        const networkBadge    = document.getElementById("networkBadge");
+        const testnetWarning  = document.getElementById("testnetWarning");
+        const payBtn          = document.getElementById("payBtn");
+        const debugEl         = document.getElementById("debugLog");
 
         debugEl.style.display = "none";
 
@@ -550,14 +548,27 @@
 
             const isTestnet = wallet.account.chain === "testnet";
 
+            // Показываем бейдж сети
             networkBadge.textContent = isTestnet ? "TESTNET" : "MAINNET";
             networkBadge.className   = "badge " + (isTestnet ? "badge-testnet" : "badge-mainnet");
+
+            // Если тестнет — показываем предупреждение и блокируем оплату
+            if (isTestnet) {
+                testnetWarning.style.display = "block";
+                payBtn.disabled = true;
+                payBtn.textContent = "Оплата недоступна (тестнет)";
+            } else {
+                testnetWarning.style.display = "none";
+                payBtn.disabled = false;
+                payBtn.textContent = "Оплатить 0.0001 TON";
+            }
 
             let walletName = "TON Wallet";
             if (wallet.device?.appName) walletName = wallet.device.appName;
             walletStatus.textContent = "Подключено через " + walletName;
 
-            fetchBalance(currentAddress, isTestnet);
+            // Баланс всегда с mainnet (tonapi.io)
+            fetchBalance(currentAddress);
 
         } else {
             walletInfo.style.display = "none";
@@ -573,10 +584,7 @@
 
     document.getElementById("refreshBalance")
         .addEventListener("click", () => {
-            if (currentAddress) {
-                const isTestnet = currentWallet?.account?.chain === "testnet";
-                fetchBalance(currentAddress, isTestnet);
-            }
+            if (currentAddress) fetchBalance(currentAddress);
         });
 
     document.getElementById("payBtn")
