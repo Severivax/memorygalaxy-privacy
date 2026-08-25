@@ -2,318 +2,140 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Telegram Web App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram User</title>
+
+    <!-- Telegram Web App API -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: var(--tg-theme-bg-color, #ffffff);
-            color: var(--tg-theme-text-color, #000000);
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
             padding: 20px;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
-        
-        .container {
+
+        .user {
             max-width: 400px;
-            width: 100%;
-            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
         }
-        
+
         .avatar {
-            width: 80px;
-            height: 80px;
+            width: 100px;
+            height: 100px;
             border-radius: 50%;
-            background: var(--tg-theme-button-color, #0088cc);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 16px;
-            font-size: 36px;
-            color: var(--tg-theme-button-text-color, #ffffff);
-            font-weight: 600;
+            object-fit: cover;
+            margin-bottom: 15px;
         }
-        
-        h2 {
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 24px;
-            color: var(--tg-theme-text-color, #000000);
-        }
-        
-        .info-grid {
-            display: grid;
-            gap: 12px;
-        }
-        
-        .info-item {
-            background: var(--tg-theme-bg-color, #ffffff);
-            padding: 12px 16px;
-            border-radius: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .info-label {
-            font-weight: 500;
-            color: var(--tg-theme-hint-color, #999999);
-            font-size: 14px;
-        }
-        
-        .info-value {
-            font-weight: 600;
-            color: var(--tg-theme-text-color, #000000);
-            font-size: 14px;
-            word-break: break-all;
-            text-align: right;
-            max-width: 60%;
-        }
-        
-        .status {
+
+        .info {
+            text-align: left;
             margin-top: 20px;
-            padding: 12px;
-            border-radius: 10px;
-            text-align: center;
-            font-size: 13px;
-            background: var(--tg-theme-bg-color, #ffffff);
-            color: var(--tg-theme-hint-color, #999999);
         }
-        
-        .status.ready {
-            color: #2ecc71;
+
+        .row {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
         }
-        
-        .status.error {
-            color: #e74c3c;
-        }
-        
-        .button {
-            margin-top: 16px;
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 10px;
-            background: var(--tg-theme-button-color, #0088cc);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        
-        .button:hover {
-            opacity: 0.8;
-        }
-        
-        .button:active {
-            transform: scale(0.98);
-        }
-        
-        .user-id {
-            font-size: 12px;
-            color: var(--tg-theme-hint-color, #999999);
-            text-align: center;
-            margin-top: 12px;
-            font-family: monospace;
-        }
-        
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid var(--tg-theme-hint-color, #999999);
-            border-radius: 50%;
-            border-top-color: var(--tg-theme-button-color, #0088cc);
-            animation: spin 0.8s linear infinite;
-            margin-right: 8px;
-            vertical-align: middle;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+
+        .label {
+            color: #777;
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="avatar" id="userAvatar">👤</div>
-        <h2 id="userName">Загрузка...</h2>
-        
-        <div class="info-grid">
-            <div class="info-item">
-                <span class="info-label">ID пользователя</span>
-                <span class="info-value" id="userId">—</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Имя</span>
-                <span class="info-value" id="userFirstName">—</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Фамилия</span>
-                <span class="info-value" id="userLastName">—</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Username</span>
-                <span class="info-value" id="userUsername">—</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Язык</span>
-                <span class="info-value" id="userLanguage">—</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Премиум</span>
-                <span class="info-value" id="userPremium">—</span>
-            </div>
-        </div>
-        
-        <div class="status" id="statusMessage">
-            <span class="loading-spinner"></span>
-            Загрузка данных...
-        </div>
-        <button class="button" id="closeButton">Закрыть</button>
-        <div class="user-id" id="rawDataDisplay"></div>
-    </div>
 
-    <script>
-        // ============================================
-        // РЕАЛЬНЫЕ ДАННЫЕ ИЗ TELEGRAM
-        // ============================================
-        
-        // Проверяем, что приложение запущено в Telegram
-        if (typeof window.Telegram === 'undefined') {
-            document.getElementById('statusMessage').innerHTML = '❌ Приложение должно быть открыто в Telegram';
-            document.getElementById('statusMessage').className = 'status error';
-            document.getElementById('userName').textContent = 'Ошибка';
-            document.getElementById('loading-spinner')?.remove();
-            throw new Error('Telegram Web App не обнаружен');
+<body>
+
+<div class="user">
+
+    <img id="avatar" class="avatar" style="display:none;">
+
+    <h2 id="name">Загрузка...</h2>
+
+    <div class="info">
+
+        <div class="row">
+            <span class="label">Username:</span>
+            <span id="username">—</span>
+        </div>
+
+        <div class="row">
+            <span class="label">Telegram ID:</span>
+            <span id="userId">—</span>
+        </div>
+
+        <div class="row">
+            <span class="label">Язык:</span>
+            <span id="language">—</span>
+        </div>
+
+        <div class="row">
+            <span class="label">Premium:</span>
+            <span id="premium">—</span>
+        </div>
+
+    </div>
+</div>
+
+<script>
+
+    // Инициализация Telegram Web App
+    const tg = window.Telegram.WebApp;
+
+    tg.ready();
+    tg.expand();
+
+    // Получаем данные пользователя
+    const user = tg.initDataUnsafe.user;
+
+    if (user) {
+
+        // Имя + фамилия
+        const fullName = [
+            user.first_name,
+            user.last_name
+        ].filter(Boolean).join(" ");
+
+        document.getElementById("name").textContent =
+            fullName || "Пользователь Telegram";
+
+        // Username
+        document.getElementById("username").textContent =
+            user.username ? "@" + user.username : "нет";
+
+        // Telegram ID
+        document.getElementById("userId").textContent =
+            user.id;
+
+        // Язык
+        document.getElementById("language").textContent =
+            user.language_code || "не указан";
+
+        // Premium
+        document.getElementById("premium").textContent =
+            user.is_premium ? "Да" : "Нет";
+
+        // Фото профиля
+        if (user.photo_url) {
+
+            const avatar = document.getElementById("avatar");
+
+            avatar.src = user.photo_url;
+            avatar.style.display = "block";
         }
-        
-        const tg = window.Telegram.WebApp;
-        
-        // Расширяем приложение
-        tg.expand();
-        
-        // Получаем данные пользователя
-        const user = tg.initDataUnsafe?.user;
-        
-        // Элементы для отображения
-        const userNameEl = document.getElementById('userName');
-        const userIdEl = document.getElementById('userId');
-        const userFirstNameEl = document.getElementById('userFirstName');
-        const userLastNameEl = document.getElementById('userLastName');
-        const userUsernameEl = document.getElementById('userUsername');
-        const userLanguageEl = document.getElementById('userLanguage');
-        const userPremiumEl = document.getElementById('userPremium');
-        const userAvatarEl = document.getElementById('userAvatar');
-        const statusMessageEl = document.getElementById('statusMessage');
-        const rawDataDisplayEl = document.getElementById('rawDataDisplay');
-        
-        // Функция обновления интерфейса
-        function updateUI(userData) {
-            // Проверяем наличие данных
-            if (!userData) {
-                statusMessageEl.innerHTML = '❌ Данные пользователя не найдены';
-                statusMessageEl.className = 'status error';
-                userNameEl.textContent = 'Нет данных';
-                return;
-            }
-            
-            // Извлекаем данные
-            const firstName = userData.first_name || 'Не указано';
-            const lastName = userData.last_name || '';
-            const username = userData.username || 'Отсутствует';
-            const userId = userData.id || 'Неизвестно';
-            const languageCode = userData.language_code || 'Неизвестно';
-            const isPremium = userData.is_premium ? '✅ Да' : '❌ Нет';
-            const fullName = lastName ? `${firstName} ${lastName}` : firstName;
-            
-            // Обновляем интерфейс
-            userNameEl.textContent = fullName;
-            userIdEl.textContent = userId;
-            userFirstNameEl.textContent = firstName;
-            userLastNameEl.textContent = lastName || '—';
-            userUsernameEl.textContent = username;
-            userLanguageEl.textContent = languageCode;
-            userPremiumEl.textContent = isPremium;
-            
-            // Аватар
-            const firstLetter = firstName.charAt(0).toUpperCase();
-            userAvatarEl.textContent = firstLetter || '👤';
-            
-            // Статус
-            statusMessageEl.innerHTML = '✅ Данные успешно загружены';
-            statusMessageEl.className = 'status ready';
-            
-            // Отладочная информация
-            rawDataDisplayEl.textContent = `User ID: ${userId} | Данные получены из Telegram`;
-            
-            // Сигнализируем Telegram, что приложение готово
-            tg.ready();
-        }
-        
-        // Проверяем наличие данных
-        if (user) {
-            console.log('✅ Данные пользователя получены:', user);
-            updateUI(user);
-        } else {
-            // Пробуем парсить из initData
-            const initData = tg.initData;
-            if (initData) {
-                try {
-                    const params = new URLSearchParams(initData);
-                    const userParam = params.get('user');
-                    
-                    if (userParam) {
-                        const parsedUser = JSON.parse(decodeURIComponent(userParam));
-                        console.log('✅ Данные распарсены из initData:', parsedUser);
-                        updateUI(parsedUser);
-                    } else {
-                        console.error('❌ Параметр user не найден в initData');
-                        statusMessageEl.innerHTML = '❌ Данные пользователя отсутствуют';
-                        statusMessageEl.className = 'status error';
-                        userNameEl.textContent = 'Нет данных';
-                    }
-                } catch (error) {
-                    console.error('❌ Ошибка парсинга initData:', error);
-                    statusMessageEl.innerHTML = '❌ Ошибка обработки данных';
-                    statusMessageEl.className = 'status error';
-                    userNameEl.textContent = 'Ошибка';
-                }
-            } else {
-                console.error('❌ initData отсутствует');
-                statusMessageEl.innerHTML = '❌ Данные пользователя недоступны';
-                statusMessageEl.className = 'status error';
-                userNameEl.textContent = 'Нет данных';
-            }
-        }
-        
-        // Кнопка закрытия
-        document.getElementById('closeButton').addEventListener('click', () => {
-            tg.close();
-        });
-        
-        // Обработка изменения темы
-        tg.onEvent('themeChanged', () => {
-            console.log('🎨 Тема изменена');
-        });
-        
-        // Логируем информацию
-        console.log('📱 Telegram Web App инициализирован');
-        console.log('👤 Пользователь:', user);
-        console.log('📋 initData:', tg.initData);
-        console.log('🎨 Тема:', tg.themeParams);
-    </script>
+
+    } else {
+
+        document.getElementById("name").textContent =
+            "Откройте приложение через Telegram";
+
+    }
+
+</script>
+
 </body>
 </html>
