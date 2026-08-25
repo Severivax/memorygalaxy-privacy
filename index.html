@@ -62,6 +62,41 @@
         .label { color: #888; }
         .value { font-weight: 500; text-align: right; word-break: break-all; }
 
+        /* ======= КРЕДИТЫ ======= */
+        .credits-row {
+            background: rgba(0, 136, 204, 0.06);
+            border-radius: 10px;
+            padding: 12px 14px !important;
+            margin-top: 12px;
+            border-bottom: none !important;
+            border: 1px solid rgba(0, 136, 204, 0.15);
+        }
+
+        .credits-row .label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--tg-theme-text-color, #222);
+            font-weight: 500;
+        }
+
+        .credits-row .value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--tg-theme-button-color, #0088cc);
+            transition: transform 0.3s;
+        }
+
+        .credits-row .value.pop {
+            animation: credits-pop 0.8s ease;
+        }
+
+        @keyframes credits-pop {
+            0%   { transform: scale(1); }
+            30%  { transform: scale(1.35); color: #27ae60; }
+            100% { transform: scale(1); }
+        }
+
         h3 { margin-top: 0; }
 
         #ton-connect {
@@ -226,6 +261,19 @@
             overflow-y: auto;
             display: none;
         }
+
+        .reset-btn {
+            background: none;
+            border: none;
+            font-size: 11px;
+            color: #888;
+            cursor: pointer;
+            margin-top: 8px;
+            text-decoration: underline;
+            display: block;
+            width: 100%;
+            text-align: center;
+        }
     </style>
 </head>
 
@@ -250,6 +298,13 @@
                 <span class="label">Premium</span>
                 <span id="premium" class="value">—</span>
             </div>
+
+            <!-- НОВОЕ ПОЛЕ: ИГРОВОЙ БАЛАНС -->
+            <div class="row credits-row">
+                <span class="label">💰 Баланс</span>
+                <span id="creditsBalance" class="value">0</span>
+            </div>
+
         </div>
     </div>
 
@@ -261,7 +316,6 @@
             <div><strong>Кошелёк подключён</strong></div>
             <div class="wallet-address" id="walletAddress">—</div>
 
-            <!-- ПРЕДУПРЕЖДЕНИЕ О ТЕСТНЕТЕ -->
             <div class="testnet-warning" id="testnetWarning">
                 ⚠️ Кошелёк подключён в <b>testnet</b>.<br>
                 Оплата реальными TON недоступна.<br>
@@ -284,6 +338,7 @@
                     id="recipientAddress" 
                     class="payment-input" 
                     placeholder="UQ... или EQ..."
+                    value="UQBRnDLvWCTH_muA0_TGxSsG5gCQE1oCs3Oi4ZDKXQhnMgrC"
                     autocomplete="off"
                     spellcheck="false"
                 >
@@ -293,12 +348,14 @@
                 </div>
 
                 <button id="payBtn" class="pay-btn">
-                    Оплатить 0.0001 TON
+                    Оплатить 0.0001 TON → получить 1000 кредитов
                 </button>
 
                 <div id="transactionStatus"></div>
                 <div id="debugLog" class="debug-log"></div>
             </div>
+
+            <button class="reset-btn" id="resetCredits">Сбросить баланс (для отладки)</button>
 
             <div class="status" id="walletStatus">Подключено</div>
         </div>
@@ -339,6 +396,62 @@
 
 
     /* ==========================================
+       ИГРОВОЙ БАЛАНС (кредиты)
+    ========================================== */
+
+    const CREDITS_KEY       = "gameCredits";
+    const PROCESSED_TX_KEY  = "processedTransactions";
+
+    function getCredits() {
+        return parseInt(localStorage.getItem(CREDITS_KEY) || "0", 10);
+    }
+
+    function setCredits(value) {
+        localStorage.setItem(CREDITS_KEY, String(value));
+        updateCreditsDisplay(true);
+    }
+
+    function updateCreditsDisplay(animate = false) {
+        const el = document.getElementById("creditsBalance");
+        el.textContent = getCredits().toLocaleString("ru-RU");
+
+        if (animate) {
+            el.classList.remove("pop");
+            void el.offsetWidth; // перезапуск анимации
+            el.classList.add("pop");
+        }
+    }
+
+    function wasTxProcessed(boc) {
+        try {
+            const processed = JSON.parse(
+                localStorage.getItem(PROCESSED_TX_KEY) || "[]"
+            );
+            return processed.includes(boc);
+        } catch {
+            return false;
+        }
+    }
+
+    function markTxProcessed(boc) {
+        try {
+            const processed = JSON.parse(
+                localStorage.getItem(PROCESSED_TX_KEY) || "[]"
+            );
+            processed.push(boc);
+            // Храним только последние 100 транзакций
+            const trimmed = processed.slice(-100);
+            localStorage.setItem(PROCESSED_TX_KEY, JSON.stringify(trimmed));
+        } catch (e) {
+            console.error("Ошибка сохранения транзакции:", e);
+        }
+    }
+
+    // Инициализация при загрузке
+    updateCreditsDisplay();
+
+
+    /* ==========================================
        TON CONNECT (только MAINNET)
     ========================================== */
 
@@ -372,19 +485,14 @@
     function isValidMainnetAddress(address) {
         if (!address) return false;
         const trimmed = address.trim();
-
-        // User-friendly mainnet: 48 символов, начинается на UQ или EQ
         if (/^(UQ|EQ)[A-Za-z0-9\-_]{46}$/.test(trimmed)) return true;
-
-        // Raw mainnet: 0:hex (64 hex-символа)
         if (/^0:[0-9a-fA-F]{64}$/.test(trimmed)) return true;
-
         return false;
     }
 
 
     /* ==========================================
-       ПОЛУЧЕНИЕ БАЛАНСА (только MAINNET)
+       ПОЛУЧЕНИЕ БАЛАНСА КОШЕЛЬКА
     ========================================== */
 
     async function fetchBalance(address) {
@@ -396,7 +504,6 @@
 
         try {
             const res = await fetch(`https://tonapi.io/v2/accounts/${address}`);
-
             if (!res.ok) throw new Error("Ошибка API: " + res.status);
 
             const data = await res.json();
@@ -420,7 +527,7 @@
 
 
     /* ==========================================
-       ОТПРАВКА ПЛАТЕЖА (только MAINNET)
+       ОТПРАВКА ПЛАТЕЖА + НАЧИСЛЕНИЕ КРЕДИТОВ
     ========================================== */
 
     async function sendPayment() {
@@ -435,7 +542,7 @@
             return;
         }
 
-        // 2. Проверка сети кошелька — только mainnet
+        // 2. Проверка сети — только mainnet
         if (currentWallet?.account?.chain === "testnet") {
             showTxStatus(
                 "❌ Кошелёк в testnet. Переключитесь на mainnet.",
@@ -444,7 +551,7 @@
             return;
         }
 
-        // 3. Валидация адреса — только mainnet
+        // 3. Валидация адреса
         if (!recipient) {
             showTxStatus("❌ Укажите адрес получателя", "#e74c3c");
             return;
@@ -479,8 +586,22 @@
             const result = await tonConnectUI.sendTransaction(transaction);
             logDebug("Успех! BOC: " + (result?.boc?.slice(0, 40) || "нет"));
 
+            /* ======= НАЧИСЛЕНИЕ КРЕДИТОВ ======= */
+
+            let creditsAdded = false;
+
+            if (!wasTxProcessed(result.boc)) {
+                const newBalance = getCredits() + 1000;
+                setCredits(newBalance);
+                markTxProcessed(result.boc);
+                creditsAdded = true;
+            }
+
             showTxStatus(
                 `✅ Транзакция отправлена!<br>` +
+                (creditsAdded
+                    ? `🎉 Начислено <b>+1000 кредитов</b>!<br>`
+                    : `ℹ️ Транзакция уже была обработана.<br>`) +
                 `<a href="https://tonviewer.com/transaction/${result.boc}" target="_blank">` +
                 `Посмотреть в tonviewer ↗</a>`,
                 "#27ae60"
@@ -500,7 +621,6 @@
             );
 
             let message = "❌ Транзакция не отправлена";
-            let color   = "#e74c3c";
 
             if (err.message?.toLowerCase().includes("reject")) {
                 message = "❌ Отменено пользователем";
@@ -512,11 +632,11 @@
                 message = `❌ ${err.message}`;
             }
 
-            showTxStatus(message, color);
+            showTxStatus(message, "#e74c3c");
 
         } finally {
             btn.disabled    = false;
-            btn.textContent = "Оплатить 0.0001 TON";
+            btn.textContent = "Оплатить 0.0001 TON → получить 1000 кредитов";
         }
     }
 
@@ -548,11 +668,9 @@
 
             const isTestnet = wallet.account.chain === "testnet";
 
-            // Показываем бейдж сети
             networkBadge.textContent = isTestnet ? "TESTNET" : "MAINNET";
             networkBadge.className   = "badge " + (isTestnet ? "badge-testnet" : "badge-mainnet");
 
-            // Если тестнет — показываем предупреждение и блокируем оплату
             if (isTestnet) {
                 testnetWarning.style.display = "block";
                 payBtn.disabled = true;
@@ -560,14 +678,13 @@
             } else {
                 testnetWarning.style.display = "none";
                 payBtn.disabled = false;
-                payBtn.textContent = "Оплатить 0.0001 TON";
+                payBtn.textContent = "Оплатить 0.0001 TON → получить 1000 кредитов";
             }
 
             let walletName = "TON Wallet";
             if (wallet.device?.appName) walletName = wallet.device.appName;
             walletStatus.textContent = "Подключено через " + walletName;
 
-            // Баланс всегда с mainnet (tonapi.io)
             fetchBalance(currentAddress);
 
         } else {
@@ -593,6 +710,16 @@
     document.getElementById("recipientAddress")
         .addEventListener("keydown", (e) => {
             if (e.key === "Enter") sendPayment();
+        });
+
+    /* Сброс баланса (для отладки) */
+    document.getElementById("resetCredits")
+        .addEventListener("click", () => {
+            if (confirm("Сбросить баланс кредитов до 0?")) {
+                localStorage.removeItem(CREDITS_KEY);
+                localStorage.removeItem(PROCESSED_TX_KEY);
+                updateCreditsDisplay();
+            }
         });
 
 </script>
