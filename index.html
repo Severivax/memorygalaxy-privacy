@@ -9,16 +9,11 @@
 
     <title>Telegram Web App</title>
 
-    <!-- Telegram Web App -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-    <!-- TON Connect UI -->
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 
     <style>
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
@@ -40,9 +35,7 @@
             margin-bottom: 15px;
         }
 
-        .profile {
-            text-align: center;
-        }
+        .profile { text-align: center; }
 
         .avatar {
             width: 100px;
@@ -53,20 +46,9 @@
             margin: 0 auto 15px;
         }
 
-        .name {
-            font-size: 24px;
-            font-weight: bold;
-            margin: 5px 0;
-        }
-
-        .username {
-            color: #888;
-            margin-bottom: 20px;
-        }
-
-        .info {
-            text-align: left;
-        }
+        .name { font-size: 24px; font-weight: bold; margin: 5px 0; }
+        .username { color: #888; margin-bottom: 20px; }
+        .info { text-align: left; }
 
         .row {
             display: flex;
@@ -76,23 +58,11 @@
             border-bottom: 1px solid rgba(128,128,128,0.15);
         }
 
-        .row:last-child {
-            border-bottom: none;
-        }
+        .row:last-child { border-bottom: none; }
+        .label { color: #888; }
+        .value { font-weight: 500; text-align: right; word-break: break-all; }
 
-        .label {
-            color: #888;
-        }
-
-        .value {
-            font-weight: 500;
-            text-align: right;
-            word-break: break-all;
-        }
-
-        h3 {
-            margin-top: 0;
-        }
+        h3 { margin-top: 0; }
 
         #ton-connect {
             display: flex;
@@ -120,7 +90,6 @@
             color: #777;
         }
 
-        /* ======= БАЛАНС ======= */
         .balance-box {
             margin-top: 12px;
             padding: 12px 14px;
@@ -132,10 +101,7 @@
             align-items: center;
         }
 
-        .balance-box .label {
-            color: #888;
-            font-size: 14px;
-        }
+        .balance-box .label { color: #888; font-size: 14px; }
 
         .balance-box .value {
             font-size: 18px;
@@ -161,11 +127,6 @@
             margin-left: 8px;
         }
 
-        .balance-refresh:active {
-            transform: scale(0.9);
-        }
-
-        /* ======= ОПЛАТА ======= */
         .payment-section {
             margin-top: 15px;
             padding-top: 15px;
@@ -194,6 +155,24 @@
             border-color: var(--tg-theme-button-color, #0088cc);
         }
 
+        .network-info {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .network-info .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+
+        .badge-mainnet { background: #d4f5e9; color: #27ae60; }
+        .badge-testnet { background: #fdecea; color: #e74c3c; }
+
         .pay-btn {
             width: 100%;
             margin-top: 12px;
@@ -208,24 +187,33 @@
             transition: opacity 0.2s, transform 0.1s;
         }
 
-        .pay-btn:active {
-            transform: scale(0.98);
-        }
-
-        .pay-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .payment-section a {
-            word-break: break-all;
-        }
+        .pay-btn:active { transform: scale(0.98); }
+        .pay-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
         #transactionStatus {
             margin-top: 12px;
             font-size: 14px;
             min-height: 20px;
             line-height: 1.5;
+            word-break: break-word;
+        }
+
+        #transactionStatus a {
+            color: var(--tg-theme-button-color, #0088cc);
+        }
+
+        .debug-log {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.05);
+            font-size: 11px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 120px;
+            overflow-y: auto;
+            display: none;
         }
     </style>
 </head>
@@ -234,96 +222,69 @@
 
 <div class="container">
 
-    <!-- Telegram profile -->
     <div class="card profile">
-
         <img id="avatar" class="avatar">
-
-        <div id="name" class="name">
-            Загрузка...
-        </div>
-
-        <div id="username" class="username">
-            @username
-        </div>
-
+        <div id="name" class="name">Загрузка...</div>
+        <div id="username" class="username">@username</div>
         <div class="info">
-
             <div class="row">
                 <span class="label">Telegram ID</span>
                 <span id="userId" class="value">—</span>
             </div>
-
             <div class="row">
                 <span class="label">Язык</span>
                 <span id="language" class="value">—</span>
             </div>
-
             <div class="row">
                 <span class="label">Premium</span>
                 <span id="premium" class="value">—</span>
             </div>
-
         </div>
-
     </div>
 
-
-    <!-- TON Wallet -->
     <div class="card">
-
         <h3>💎 TON Wallet</h3>
-
         <div id="ton-connect"></div>
 
         <div id="walletInfo" class="wallet-info">
+            <div><strong>Кошелёк подключён</strong></div>
+            <div class="wallet-address" id="walletAddress">—</div>
 
-            <div>
-                <strong>Кошелёк подключён</strong>
-            </div>
-
-            <div class="wallet-address" id="walletAddress">
-                —
-            </div>
-
-            <!-- БАЛАНС -->
             <div class="balance-box">
                 <div>
                     <span class="label">Баланс</span>
-                    <div class="value" id="walletBalance">
-                        ...
-                    </div>
+                    <div class="value" id="walletBalance">...</div>
                     <span class="sub" id="walletBalanceNano"></span>
                 </div>
-                <button class="balance-refresh" id="refreshBalance" title="Обновить">
-                    🔄
-                </button>
+                <button class="balance-refresh" id="refreshBalance" title="Обновить">🔄</button>
             </div>
 
-            <!-- ОПЛАТА -->
             <div class="payment-section">
                 <div class="label">Адрес получателя</div>
                 <input 
                     type="text" 
                     id="recipientAddress" 
                     class="payment-input" 
-                    placeholder="UQ..."
+                    placeholder="UQ... или EQ..."
                     autocomplete="off"
+                    spellcheck="false"
                 >
+
+                <!-- Показывает сеть подключённого кошелька -->
+                <div class="network-info" id="networkInfo">
+                    Сеть: <span class="badge" id="networkBadge">—</span>
+                </div>
 
                 <button id="payBtn" class="pay-btn">
                     Оплатить 0.0001 TON
                 </button>
 
-                <div class="status" id="transactionStatus"></div>
+                <div id="transactionStatus"></div>
+                <div id="debugLog" class="debug-log"></div>
             </div>
 
-            <div class="status" id="walletStatus">
-                Подключено
-            </div>
-
+            <div class="status" id="walletStatus">Подключено</div>
         </div>
-
     </div>
 
 </div>
@@ -336,59 +297,27 @@
     ========================================== */
 
     const tg = window.Telegram.WebApp;
-
     tg.ready();
     tg.expand();
 
     const user = tg.initDataUnsafe?.user;
 
     if (user) {
-
-        const fullName = [
-            user.first_name,
-            user.last_name
-        ]
-        .filter(Boolean)
-        .join(" ");
-
-        document.getElementById("name").textContent =
-            fullName || "Пользователь Telegram";
-
-
-        document.getElementById("username").textContent =
-            user.username
-                ? "@" + user.username
-                : "Username отсутствует";
-
-
-        document.getElementById("userId").textContent =
-            user.id;
-
-
-        document.getElementById("language").textContent =
-            user.language_code || "не указан";
-
-
-        document.getElementById("premium").textContent =
-            user.is_premium ? "Да" : "Нет";
-
+        const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ");
+        document.getElementById("name").textContent = fullName || "Пользователь Telegram";
+        document.getElementById("username").textContent = user.username ? "@" + user.username : "Username отсутствует";
+        document.getElementById("userId").textContent = user.id;
+        document.getElementById("language").textContent = user.language_code || "не указан";
+        document.getElementById("premium").textContent = user.is_premium ? "Да" : "Нет";
 
         if (user.photo_url) {
-
-            const avatar =
-                document.getElementById("avatar");
-
+            const avatar = document.getElementById("avatar");
             avatar.src = user.photo_url;
             avatar.style.display = "block";
         }
-
     } else {
-
-        document.getElementById("name").textContent =
-            "Откройте приложение через Telegram";
-
-        document.getElementById("username").textContent =
-            "";
+        document.getElementById("name").textContent = "Откройте приложение через Telegram";
+        document.getElementById("username").textContent = "";
     }
 
 
@@ -396,30 +325,62 @@
        TON CONNECT
     ========================================== */
 
-    const tonConnectUI =
-        new TON_CONNECT_UI.TonConnectUI({
+    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+        manifestUrl: "https://severivax.github.io/memorygalaxy-privacy/tonconnect-manifest.json",
+        buttonRootId: "ton-connect",
+        restoreConnection: true
+    });
 
-            manifestUrl:
-                "https://severivax.github.io/memorygalaxy-privacy/tonconnect-manifest.json",
-
-            buttonRootId:
-                "ton-connect",
-
-            restoreConnection:
-                true
-        });
+    tonConnectUI.uiOptions = { language: "ru" };
 
 
-    tonConnectUI.uiOptions = {
-        language: "ru"
-    };
+    /* ==========================================
+       ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+    ========================================== */
+
+    function logDebug(text) {
+        const el = document.getElementById("debugLog");
+        el.style.display = "block";
+        el.textContent = text;
+        console.log("[DEBUG]", text);
+    }
+
+    function showTxStatus(message, color) {
+        const el = document.getElementById("transactionStatus");
+        el.innerHTML = message;
+        el.style.color = color;
+    }
+
+    /* Простая валидация адреса TON */
+    function isValidTonAddress(address) {
+        if (!address) return false;
+        const trimmed = address.trim();
+
+        // user-friendly: 48 символов, начинается на EQ/UQ/kQ/...
+        if (/^[A-Za-z0-9\-_]{48}$/.test(trimmed)) return true;
+
+        // raw: hex:hex (64 hex символа после двоеточия)
+        if (/^(-1|0):[0-9a-fA-F]{64}$/.test(trimmed)) return true;
+
+        return false;
+    }
+
+    function isTestnetAddress(address) {
+        const trimmed = address.trim();
+        // Raw testnet адреса начинаются с kQ (или -1:)
+        // User-friendly testnet адреса не так легко отличить без библиотеки,
+        // поэтому ориентируемся на raw-формат и префикс kQ
+        if (/^kQ[A-Za-z0-9\-_]{46}$/.test(trimmed)) return true;
+        if (/^-1:[0-9a-fA-F]{64}$/.test(trimmed)) return true;
+        return false;
+    }
 
 
     /* ==========================================
        ПОЛУЧЕНИЕ БАЛАНСА
     ========================================== */
 
-    async function fetchBalance(address) {
+    async function fetchBalance(address, isTestnet = false) {
         const balanceEl = document.getElementById("walletBalance");
         const nanoEl    = document.getElementById("walletBalanceNano");
 
@@ -427,14 +388,12 @@
         nanoEl.textContent    = "";
 
         try {
-            const res = await fetch(
-                `https://tonapi.io/v2/accounts/${address}`
-            );
+            const host = isTestnet ? "testnet.tonapi.io" : "tonapi.io";
+            const res = await fetch(`https://${host}/v2/accounts/${address}`);
 
             if (!res.ok) throw new Error("Ошибка API: " + res.status);
 
             const data = await res.json();
-
             const nano = BigInt(data.balance);
             const ton  = Number(nano) / 1e9;
 
@@ -460,79 +419,105 @@
 
     async function sendPayment() {
         const recipientInput = document.getElementById("recipientAddress");
-        const statusEl       = document.getElementById("transactionStatus");
         const btn            = document.getElementById("payBtn");
 
         const recipient = recipientInput.value.trim();
 
-        // Валидация
+        // 1. Проверка подключения
+        if (!currentAddress || !tonConnectUI.connected) {
+            showTxStatus("❌ Сначала подключите кошелёк", "#e74c3c");
+            return;
+        }
+
+        // 2. Валидация адреса
         if (!recipient) {
-            statusEl.textContent = "❌ Укажите адрес получателя";
-            statusEl.style.color = "#e74c3c";
+            showTxStatus("❌ Укажите адрес получателя", "#e74c3c");
             return;
         }
 
-        if (!currentAddress) {
-            statusEl.textContent = "❌ Сначала подключите кошелёк";
-            statusEl.style.color = "#e74c3c";
+        if (!isValidTonAddress(recipient)) {
+            showTxStatus(
+                "❌ Неверный формат адреса.<br>Адрес должен быть 48 символов (UQ/EQ...) или в raw-формате.",
+                "#e74c3c"
+            );
             return;
         }
 
-        // Блокируем кнопку
+        // 3. Проверка совпадения сетей
+        const walletIsTestnet = currentWallet?.account?.chain === "testnet";
+        const addressIsTestnet = isTestnetAddress(recipient);
+
+        if (walletIsTestnet !== addressIsTestnet) {
+            showTxStatus(
+                `❌ Адрес и кошелёк в разных сетях!<br>` +
+                `Кошелёк: <b>${walletIsTestnet ? "testnet" : "mainnet"}</b><br>` +
+                `Адрес: <b>${addressIsTestnet ? "testnet" : "mainnet"}</b>`,
+                "#e74c3c"
+            );
+            return;
+        }
+
+        // 4. Блокируем кнопку
         btn.disabled    = true;
         btn.textContent = "⏳ Отправка...";
-        statusEl.textContent = "Подтвердите транзакцию в кошельке...";
-        statusEl.style.color = "#0088cc";
+        showTxStatus("Подтвердите транзакцию в кошельке...", "#0088cc");
+        logDebug(`Sending 100000 нано-TON → ${recipient}`);
 
         try {
-            // 0.0001 TON = 100000 нано-TON
             const transaction = {
-                validUntil: Math.floor(Date.now() / 1000) + 60,
+                validUntil: Math.floor(Date.now() / 1000) + 300, // 5 минут
                 messages: [
                     {
                         address: recipient,
-                        amount: "100000"
+                        amount: "100000"  // 0.0001 TON
                     }
                 ]
             };
 
+            logDebug("Вызов sendTransaction...");
             const result = await tonConnectUI.sendTransaction(transaction);
+            logDebug("Успех! BOC: " + (result?.boc?.slice(0, 40) || "нет"));
 
-            // Успех
-            const txHash = result.boc
-                ? JSON.parse(
-                    atob(
-                        result.boc.split(":")[0] || ""
-                    )
-                ).hash || ""
-                : "";
+            // Ссылка на обозреватель
+            const explorer = walletIsTestnet
+                ? "https://testnet.tonviewer.com"
+                : "https://tonviewer.com";
 
-            statusEl.innerHTML =
+            showTxStatus(
                 `✅ Транзакция отправлена!<br>` +
-                `<a href="https://tonviewer.com/transaction/${result.boc}" target="_blank" style="color: #0088cc;">` +
-                `Посмотреть в tonviewer</a>`;
-            statusEl.style.color = "#27ae60";
+                `<a href="${explorer}/transaction/${result.boc}" target="_blank">` +
+                `Посмотреть в обозревателе ↗</a>`,
+                "#27ae60"
+            );
 
-            // Обновляем баланс через 5 секунд
             setTimeout(() => {
-                if (currentAddress) fetchBalance(currentAddress);
+                if (currentAddress) fetchBalance(currentAddress, walletIsTestnet);
             }, 5000);
 
         } catch (err) {
             console.error("Ошибка транзакции:", err);
+            logDebug(
+                `name: ${err.name}\n` +
+                `message: ${err.message}\n` +
+                `cause: ${err.cause || "—"}\n` +
+                `code: ${err.code || "—"}`
+            );
 
-            if (
-                err.message &&
-                (
-                    err.message.includes("reject") ||
-                    err.message.includes("Reject")
-                )
-            ) {
-                statusEl.textContent = "❌ Транзакция отклонена пользователем";
-            } else {
-                statusEl.textContent = "❌ Ошибка: " + (err.message || "неизвестная");
+            let message = "❌ Транзакция не отправлена";
+            let color   = "#e74c3c";
+
+            if (err.message?.toLowerCase().includes("reject")) {
+                message = "❌ Отменено пользователем";
+            } else if (err.message?.toLowerCase().includes("insufficient")) {
+                message = "❌ Недостаточно средств на кошельке";
+            } else if (err.message?.toLowerCase().includes("expired")) {
+                message = "❌ Истекло время ожидания";
+            } else if (err.message) {
+                message = `❌ ${err.message}`;
             }
-            statusEl.style.color = "#e74c3c";
+
+            showTxStatus(message, color);
+
         } finally {
             btn.disabled    = false;
             btn.textContent = "Оплатить 0.0001 TON";
@@ -545,37 +530,40 @@
     ========================================== */
 
     let currentAddress = null;
+    let currentWallet  = null;
 
     tonConnectUI.onStatusChange(wallet => {
-
         const walletInfo    = document.getElementById("walletInfo");
         const walletAddress = document.getElementById("walletAddress");
         const walletStatus  = document.getElementById("walletStatus");
+        const networkBadge  = document.getElementById("networkBadge");
+        const debugEl       = document.getElementById("debugLog");
 
+        debugEl.style.display = "none";
 
         if (wallet) {
-
-            walletInfo.style.display = "block";
+            currentWallet  = wallet;
             currentAddress = wallet.account.address;
 
-            walletAddress.textContent = wallet.account.address;
+            walletInfo.style.display = "block";
+            walletAddress.textContent = currentAddress;
+
+            const isTestnet = wallet.account.chain === "testnet";
+
+            networkBadge.textContent = isTestnet ? "TESTNET" : "MAINNET";
+            networkBadge.className   = "badge " + (isTestnet ? "badge-testnet" : "badge-mainnet");
 
             let walletName = "TON Wallet";
-            if (wallet.device && wallet.device.appName) {
-                walletName = wallet.device.appName;
-            }
-
+            if (wallet.device?.appName) walletName = wallet.device.appName;
             walletStatus.textContent = "Подключено через " + walletName;
 
-            fetchBalance(currentAddress);
+            fetchBalance(currentAddress, isTestnet);
 
         } else {
-
             walletInfo.style.display = "none";
             currentAddress = null;
-
+            currentWallet  = null;
         }
-
     });
 
 
@@ -586,19 +574,17 @@
     document.getElementById("refreshBalance")
         .addEventListener("click", () => {
             if (currentAddress) {
-                fetchBalance(currentAddress);
+                const isTestnet = currentWallet?.account?.chain === "testnet";
+                fetchBalance(currentAddress, isTestnet);
             }
         });
 
     document.getElementById("payBtn")
         .addEventListener("click", sendPayment);
 
-    /* Отправка по Enter */
     document.getElementById("recipientAddress")
         .addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-                sendPayment();
-            }
+            if (e.key === "Enter") sendPayment();
         });
 
 </script>
