@@ -92,7 +92,7 @@
         }
         
         .status.ready {
-            color: var(--tg-theme-button-color, #0088cc);
+            color: #2ecc71;
         }
         
         .status.error {
@@ -129,14 +129,20 @@
             font-family: monospace;
         }
         
-        .dev-badge {
-            background: #ff6b6b;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 11px;
+        .loading-spinner {
             display: inline-block;
-            margin-top: 8px;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--tg-theme-hint-color, #999999);
+            border-radius: 50%;
+            border-top-color: var(--tg-theme-button-color, #0088cc);
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -172,92 +178,32 @@
             </div>
         </div>
         
-        <div class="status" id="statusMessage">Инициализация...</div>
+        <div class="status" id="statusMessage">
+            <span class="loading-spinner"></span>
+            Загрузка данных...
+        </div>
         <button class="button" id="closeButton">Закрыть</button>
         <div class="user-id" id="rawDataDisplay"></div>
-        <div style="text-align: center;">
-            <span class="dev-badge" id="envBadge">🌐 Режим разработки</span>
-        </div>
     </div>
 
     <script>
         // ============================================
-        // ЭМУЛЯЦИЯ TELEGRAM WEB APP ДЛЯ РАЗРАБОТКИ
+        // РЕАЛЬНЫЕ ДАННЫЕ ИЗ TELEGRAM
         // ============================================
         
-        // Создаем эмуляцию Telegram Web App, если она не существует
-        if (!window.Telegram) {
-            window.Telegram = {};
+        // Проверяем, что приложение запущено в Telegram
+        if (typeof window.Telegram === 'undefined') {
+            document.getElementById('statusMessage').innerHTML = '❌ Приложение должно быть открыто в Telegram';
+            document.getElementById('statusMessage').className = 'status error';
+            document.getElementById('userName').textContent = 'Ошибка';
+            document.getElementById('loading-spinner')?.remove();
+            throw new Error('Telegram Web App не обнаружен');
         }
         
-        if (!window.Telegram.WebApp) {
-            console.log('🔧 Эмуляция Telegram Web App активирована');
-            
-            // Эмулируем данные пользователя для тестирования
-            const mockUser = {
-                id: 123456789,
-                first_name: 'Иван',
-                last_name: 'Петров',
-                username: 'ivan_petrov',
-                language_code: 'ru',
-                is_premium: true,
-                allows_write_to_pm: true
-            };
-            
-            window.Telegram.WebApp = {
-                initData: 'query_id=AAHdF6IQAAAAAN0XohDhrOrc&user=' + encodeURIComponent(JSON.stringify(mockUser)) + '&auth_date=1735123456&hash=abc123def456',
-                initDataUnsafe: {
-                    user: mockUser,
-                    query_id: 'AAHdF6IQAAAAAN0XohDhrOrc',
-                    auth_date: '1735123456',
-                    hash: 'abc123def456'
-                },
-                themeParams: {
-                    bg_color: '#ffffff',
-                    text_color: '#000000',
-                    hint_color: '#999999',
-                    link_color: '#0088cc',
-                    button_color: '#0088cc',
-                    button_text_color: '#ffffff',
-                    secondary_bg_color: '#f0f0f0'
-                },
-                expand: function() {
-                    console.log('📱 WebApp expanded');
-                },
-                ready: function() {
-                    console.log('✅ WebApp ready');
-                },
-                close: function() {
-                    console.log('❌ WebApp closed');
-                    alert('Приложение закрыто (эмуляция)');
-                },
-                onEvent: function(event, callback) {
-                    console.log(`📡 Event registered: ${event}`);
-                },
-                sendData: function(data) {
-                    console.log('📤 Data sent:', data);
-                }
-            };
-            
-            // Добавляем индикатор режима разработки
-            document.getElementById('envBadge').textContent = '🔧 Режим разработки (эмуляция)';
-            document.getElementById('envBadge').style.background = '#ff6b6b';
-        } else {
-            document.getElementById('envBadge').textContent = '🚀 Telegram Web App';
-            document.getElementById('envBadge').style.background = '#2ecc71';
-        }
-        
-        // ============================================
-        // ОСНОВНАЯ ЛОГИКА ПРИЛОЖЕНИЯ
-        // ============================================
-        
-        // Инициализация Telegram Web App
         const tg = window.Telegram.WebApp;
         
-        // Расширяем приложение на весь экран
-        if (tg.expand) {
-            tg.expand();
-        }
+        // Расширяем приложение
+        tg.expand();
         
         // Получаем данные пользователя
         const user = tg.initDataUnsafe?.user;
@@ -274,27 +220,27 @@
         const statusMessageEl = document.getElementById('statusMessage');
         const rawDataDisplayEl = document.getElementById('rawDataDisplay');
         
-        // Функция для обновления интерфейса
-        function updateUserInfo(userData) {
+        // Функция обновления интерфейса
+        function updateUI(userData) {
+            // Проверяем наличие данных
             if (!userData) {
-                statusMessageEl.textContent = '❌ Данные пользователя не найдены';
+                statusMessageEl.innerHTML = '❌ Данные пользователя не найдены';
                 statusMessageEl.className = 'status error';
+                userNameEl.textContent = 'Нет данных';
                 return;
             }
             
-            // Основная информация
+            // Извлекаем данные
             const firstName = userData.first_name || 'Не указано';
             const lastName = userData.last_name || '';
             const username = userData.username || 'Отсутствует';
             const userId = userData.id || 'Неизвестно';
             const languageCode = userData.language_code || 'Неизвестно';
             const isPremium = userData.is_premium ? '✅ Да' : '❌ Нет';
-            
-            // Отображаем имя пользователя
             const fullName = lastName ? `${firstName} ${lastName}` : firstName;
-            userNameEl.textContent = fullName;
             
-            // Заполняем все поля
+            // Обновляем интерфейс
+            userNameEl.textContent = fullName;
             userIdEl.textContent = userId;
             userFirstNameEl.textContent = firstName;
             userLastNameEl.textContent = lastName || '—';
@@ -302,76 +248,72 @@
             userLanguageEl.textContent = languageCode;
             userPremiumEl.textContent = isPremium;
             
-            // Устанавливаем аватар (первая буква имени)
+            // Аватар
             const firstLetter = firstName.charAt(0).toUpperCase();
             userAvatarEl.textContent = firstLetter || '👤';
             
             // Статус
-            statusMessageEl.textContent = '✅ Данные успешно загружены';
+            statusMessageEl.innerHTML = '✅ Данные успешно загружены';
             statusMessageEl.className = 'status ready';
             
-            // Показываем сырые данные для отладки
-            rawDataDisplayEl.textContent = `Raw: ${tg.initData ? tg.initData.substring(0, 50) + '...' : 'Нет данных'}`;
+            // Отладочная информация
+            rawDataDisplayEl.textContent = `User ID: ${userId} | Данные получены из Telegram`;
             
-            // Отправляем событие о готовности
-            if (tg.ready) {
-                tg.ready();
-            }
+            // Сигнализируем Telegram, что приложение готово
+            tg.ready();
         }
         
         // Проверяем наличие данных
         if (user) {
-            console.log('👤 Данные пользователя получены:', user);
-            updateUserInfo(user);
+            console.log('✅ Данные пользователя получены:', user);
+            updateUI(user);
         } else {
-            console.warn('⚠️ Данные пользователя отсутствуют');
-            
-            // Пробуем получить данные через initData
+            // Пробуем парсить из initData
             const initData = tg.initData;
             if (initData) {
                 try {
                     const params = new URLSearchParams(initData);
                     const userParam = params.get('user');
+                    
                     if (userParam) {
                         const parsedUser = JSON.parse(decodeURIComponent(userParam));
-                        console.log('👤 Данные распарсены из initData:', parsedUser);
-                        updateUserInfo(parsedUser);
+                        console.log('✅ Данные распарсены из initData:', parsedUser);
+                        updateUI(parsedUser);
                     } else {
-                        statusMessageEl.textContent = '❌ Данные пользователя отсутствуют';
+                        console.error('❌ Параметр user не найден в initData');
+                        statusMessageEl.innerHTML = '❌ Данные пользователя отсутствуют';
                         statusMessageEl.className = 'status error';
+                        userNameEl.textContent = 'Нет данных';
                     }
-                } catch (e) {
-                    console.error('Ошибка парсинга:', e);
-                    statusMessageEl.textContent = '❌ Ошибка парсинга данных';
+                } catch (error) {
+                    console.error('❌ Ошибка парсинга initData:', error);
+                    statusMessageEl.innerHTML = '❌ Ошибка обработки данных';
                     statusMessageEl.className = 'status error';
+                    userNameEl.textContent = 'Ошибка';
                 }
             } else {
-                statusMessageEl.textContent = '❌ Данные пользователя недоступны';
+                console.error('❌ initData отсутствует');
+                statusMessageEl.innerHTML = '❌ Данные пользователя недоступны';
                 statusMessageEl.className = 'status error';
+                userNameEl.textContent = 'Нет данных';
             }
         }
         
-        // Обработчик кнопки закрытия
+        // Кнопка закрытия
         document.getElementById('closeButton').addEventListener('click', () => {
-            if (tg.close) {
-                tg.close();
-            } else {
-                alert('Приложение закрыто (эмуляция)');
-            }
+            tg.close();
         });
         
         // Обработка изменения темы
-        if (tg.onEvent) {
-            tg.onEvent('themeChanged', () => {
-                console.log('🎨 Тема изменена');
-            });
-        }
+        tg.onEvent('themeChanged', () => {
+            console.log('🎨 Тема изменена');
+        });
         
-        // Логируем информацию для отладки
+        // Логируем информацию
         console.log('📱 Telegram Web App инициализирован');
-        console.log('👤 Данные пользователя:', user);
-        console.log('📋 Init data:', tg.initData);
-        console.log('🎨 Параметры темы:', tg.themeParams);
+        console.log('👤 Пользователь:', user);
+        console.log('📋 initData:', tg.initData);
+        console.log('🎨 Тема:', tg.themeParams);
     </script>
 </body>
 </html>
