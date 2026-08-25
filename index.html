@@ -1,1320 +1,278 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0b2318">
-<title>Бросок кубика</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --felt-dark:#0a2016;
-    --felt:#153a28;
-    --ivory:#f3eee1;
-    --ink:#211d14;
-    --gold:#c9a227;
-    --gold-bright:#eccf72;
-    --cream:#ede6d6;
-    --cream-dim:rgba(237,230,214,.58);
-    --shadow-strong:rgba(0,0,0,.5);
-  }
-
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-
-  html,body{
-    margin:0;
-    height:100%;
-    background:var(--felt-dark);
-    overflow:hidden;
-    overscroll-behavior:none;
-    font-family:'Inter',system-ui,sans-serif;
-    color:var(--cream);
-  }
-
-  #scene{
-    position:fixed;
-    inset:0;
-    width:100%;
-    height:100%;
-    display:block;
-    touch-action:none;
-  }
-
-  .vignette{
-    position:fixed;
-    inset:0;
-    pointer-events:none;
-    background:
-      radial-gradient(ellipse at 50% 38%, transparent 40%, rgba(5,15,10,.55) 100%),
-      linear-gradient(to bottom, rgba(5,15,10,.35) 0%, transparent 22%, transparent 70%, rgba(5,15,10,.55) 100%);
-    z-index:2;
-  }
-
-  .topbar{
-    position:fixed;
-    top:0;left:0;right:0;
-    z-index:5;
-    text-align:center;
-    padding:max(22px, env(safe-area-inset-top)) 20px 0;
-    pointer-events:none;
-  }
-
-  .eyebrow{
-    margin:0 0 6px;
-    font-size:11px;
-    letter-spacing:.22em;
-    text-transform:uppercase;
-    color:var(--gold-bright);
-    font-weight:600;
-    opacity:.85;
-  }
-
-  .result-row{
-    display:flex;
-    align-items:baseline;
-    justify-content:center;
-    gap:14px;
-    flex-wrap:wrap;
-  }
-
-  .result-number{
-    font-family:'Fraunces', serif;
-    font-weight:700;
-    font-size:clamp(46px, 15vw, 78px);
-    line-height:1;
-    color:var(--ivory);
-    text-shadow:0 0 28px rgba(201,162,39,.35), 0 4px 18px rgba(0,0,0,.5);
-    min-width:1ch;
-    transition:opacity .15s ease;
-  }
-  .result-number.is-rolling{
-    opacity:.45;
-    animation:flicker .09s steps(1) infinite;
-  }
-  @keyframes flicker{
-    0%,100%{transform:translateY(0);}
-    50%{transform:translateY(-2px);}
-  }
-
-  .result-label{
-    font-size:13px;
-    letter-spacing:.04em;
-    color:var(--cream-dim);
-    font-weight:500;
-    padding-bottom:8px;
-  }
-
-  .timer-wrap{
-    position:relative;
-    width:84px;height:84px;
-    margin:4px auto 6px;
-  }
-  .timer-ring{
-    width:100%;height:100%;
-    transform:rotate(-90deg);
-    display:block;
-  }
-  .timer-ring-bg{
-    fill:none;
-    stroke:rgba(237,230,214,.14);
-    stroke-width:6;
-  }
-  .timer-ring-progress{
-    fill:none;
-    stroke:var(--gold-bright);
-    stroke-width:6;
-    stroke-linecap:round;
-    transition:stroke .25s ease;
-  }
-  .timer-ring-progress.is-rolling{ stroke:#e2673f; }
-  .timer-center{
-    position:absolute;
-    inset:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-  }
-  .timer-number{
-    font-family:'Fraunces', serif;
-    font-weight:700;
-    font-size:28px;
-    color:var(--ivory);
-    line-height:1;
-  }
-  .timer-wrap.is-urgent .timer-number{
-    color:#ef7a56;
-    animation:pulse-urgent .6s ease-in-out infinite;
-  }
-  @keyframes pulse-urgent{
-    0%,100%{ transform:scale(1); }
-    50%{ transform:scale(1.14); }
-  }
-
-  .phase-label{
-    margin:0 0 8px;
-    font-size:12px;
-    letter-spacing:.08em;
-    text-transform:uppercase;
-    color:var(--gold-bright);
-    font-weight:600;
-  }
-
-  .balance-pill{
-    position:fixed;
-    top:max(22px, env(safe-area-inset-top));
-    left:16px;
-    z-index:6;
-    background:rgba(10,32,22,.6);
-    border:1px solid rgba(201,162,39,.35);
-    backdrop-filter:blur(6px);
-    border-radius:999px;
-    padding:8px 14px;
-    font-size:11px;
-    font-weight:600;
-    letter-spacing:.02em;
-    color:var(--cream-dim);
-    white-space:nowrap;
-  }
-  .balance-pill span{
-    color:var(--gold-bright);
-    font-family:'Fraunces', serif;
-    font-weight:700;
-    font-size:14px;
-    margin-left:4px;
-  }
-
-  .casino-pill{
-    position:fixed;
-    top:calc(max(22px, env(safe-area-inset-top)) + 44px);
-    left:16px;
-    z-index:6;
-    background:rgba(10,32,22,.6);
-    border:1px solid rgba(201,162,39,.3);
-    backdrop-filter:blur(6px);
-    border-radius:999px;
-    padding:7px 14px;
-    font-size:11px;
-    font-weight:600;
-    color:var(--cream-dim);
-    white-space:nowrap;
-  }
-  .casino-pill span{
-    color:var(--gold-bright);
-    font-family:'Fraunces', serif;
-    font-weight:700;
-    font-size:14px;
-    margin-left:4px;
-  }
-  .casino-pill span.is-down{ color:#e0897a; }
-
-  .players-toggle{
-    position:fixed;
-    top:calc(max(22px, env(safe-area-inset-top)) + 88px);
-    left:16px;
-    z-index:6;
-    display:flex;
-    align-items:center;
-    gap:6px;
-    background:rgba(10,32,22,.6);
-    border:1px solid rgba(201,162,39,.3);
-    backdrop-filter:blur(6px);
-    border-radius:999px;
-    padding:7px 12px;
-    font-size:11px;
-    font-weight:600;
-    color:var(--cream-dim);
-    cursor:pointer;
-  }
-  .players-toggle .count{
-    background:var(--gold);
-    color:var(--ink);
-    border-radius:999px;
-    padding:1px 7px;
-    font-family:'Fraunces', serif;
-    font-weight:700;
-    font-size:11px;
-  }
-
-  .players-panel{
-    position:fixed;
-    inset:0;
-    z-index:26;
-    background:rgba(4,12,8,.6);
-    backdrop-filter:blur(3px);
-    opacity:0;
-    visibility:hidden;
-    transition:opacity .25s ease, visibility .25s ease;
-  }
-  .players-panel.is-open{ opacity:1; visibility:visible; }
-
-  .players-panel-inner{
-    position:absolute;
-    left:0;right:0;bottom:0;
-    max-height:72vh;
-    background:linear-gradient(180deg, #123322, #0a2016);
-    border-top:1px solid rgba(201,162,39,.35);
-    border-radius:22px 22px 0 0;
-    padding:18px 18px calc(18px + env(safe-area-inset-bottom));
-    transform:translateY(100%);
-    transition:transform .32s cubic-bezier(.22,.9,.32,1);
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-    box-shadow:0 -12px 30px rgba(0,0,0,.5);
-  }
-  .players-panel.is-open .players-panel-inner{ transform:translateY(0); }
-
-  .players-panel-header{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-  }
-  .players-panel-header p{
-    margin:0;
-    font-family:'Fraunces', serif;
-    font-weight:700;
-    font-size:17px;
-    color:var(--ivory);
-  }
-  .players-panel-sub{
-    margin:3px 0 0 !important;
-    font-family:'Inter', sans-serif !important;
-    font-size:11px !important;
-    font-weight:500 !important;
-    color:var(--cream-dim) !important;
-  }
-  .players-panel-sub span{
-    color:var(--gold-bright);
-    font-weight:700;
-  }
-  .players-close{
-    width:30px;height:30px;
-    border-radius:50%;
-    border:1px solid rgba(237,230,214,.25);
-    background:rgba(255,255,255,.06);
-    color:var(--cream);
-    font-size:14px;
-    line-height:1;
-    cursor:pointer;
-  }
-
-  .players-list{
-    overflow-y:auto;
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-  }
-
-  .player-row{
-    display:grid;
-    grid-template-columns:1fr auto auto;
-    align-items:center;
-    gap:12px;
-    padding:9px 12px;
-    border-radius:12px;
-    background:rgba(255,255,255,.03);
-  }
-  .player-row.is-player{
-    background:rgba(201,162,39,.16);
-    border:1px solid rgba(201,162,39,.4);
-  }
-  .player-row.is-eliminated{
-    opacity:.45;
-  }
-  .player-row.is-eliminated .player-bet{
-    color:#e0897a;
-  }
-  .player-name{
-    font-size:13px;
-    font-weight:600;
-    color:var(--cream);
-  }
-  .player-row.is-player .player-name{ color:var(--gold-bright); }
-  .player-bet{
-    font-size:11px;
-    color:var(--cream-dim);
-    text-transform:uppercase;
-    letter-spacing:.04em;
-  }
-  .player-balance{
-    font-family:'Fraunces', serif;
-    font-weight:700;
-    font-size:15px;
-    color:var(--ivory);
-    min-width:3ch;
-    text-align:right;
-  }
-  .player-balance.is-up{ color:#8fd28f; }
-  .player-balance.is-down{ color:#e0897a; }
-
-  .start-overlay{
-    position:fixed;
-    inset:0;
-    z-index:30;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:rgba(6,17,12,.88);
-    backdrop-filter:blur(4px);
-    padding:24px;
-    transition:opacity .35s ease, visibility .35s ease;
-  }
-  .start-overlay.is-hidden{
-    opacity:0;
-    visibility:hidden;
-    pointer-events:none;
-  }
-  .start-card{ max-width:340px; text-align:center; }
-  .start-card h1{
-    font-family:'Fraunces', serif;
-    font-size:clamp(28px, 8vw, 36px);
-    margin:4px 0 14px;
-    color:var(--ivory);
-  }
-  .start-desc{
-    font-size:14px;
-    line-height:1.55;
-    color:var(--cream-dim);
-    margin:0 0 26px;
-  }
-  .start-btn{
-    border:none;
-    cursor:pointer;
-    padding:16px 36px;
-    border-radius:999px;
-    background:radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold) 60%, #8a6c17 100%);
-    color:var(--ink);
-    font-family:'Fraunces', serif;
-    font-weight:700;
-    font-size:16px;
-    box-shadow:0 10px 24px rgba(0,0,0,.45), inset 0 2px 3px rgba(255,255,255,.5);
-    transition:transform .12s ease;
-  }
-  .start-btn:active{ transform:scale(.95); }
-
-  .history{
-    position:fixed;
-    left:0;right:0;
-    bottom:calc(224px + env(safe-area-inset-bottom));
-    z-index:5;
-    display:flex;
-    gap:10px;
-    justify-content:center;
-    padding:0 20px;
-    pointer-events:none;
-    flex-wrap:wrap-reverse;
-  }
-
-  .target-picker{
-    position:fixed;
-    left:0;right:0;
-    bottom:calc(130px + env(safe-area-inset-bottom));
-    z-index:6;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:8px;
-  }
-
-  .picker-label{
-    margin:0;
-    font-size:11px;
-    letter-spacing:.1em;
-    text-transform:uppercase;
-    color:var(--cream-dim);
-    font-weight:600;
-  }
-
-  .picker-row{
-    display:flex;
-    gap:8px;
-    padding:0 16px;
-    max-width:100%;
-    overflow-x:auto;
-    scrollbar-width:none;
-  }
-  .picker-row::-webkit-scrollbar{ display:none; }
-
-  .picker-chip{
-    flex:0 0 auto;
-    min-width:84px;
-    height:44px;
-    padding:0 18px;
-    border-radius:14px;
-    border:1px solid rgba(237,230,214,.22);
-    background:rgba(10,32,22,.55);
-    backdrop-filter:blur(6px);
-    color:var(--cream);
-    font-family:'Fraunces', serif;
-    font-weight:700;
-    font-size:15px;
-    display:flex;align-items:center;justify-content:center;
-    cursor:pointer;
-    transition:background .15s ease, border-color .15s ease, transform .1s ease, color .15s ease;
-  }
-  .picker-chip:active{ transform:scale(.94); }
-  .picker-chip.is-active{
-    background:linear-gradient(160deg, var(--gold-bright), var(--gold));
-    border-color:var(--gold-bright);
-    color:var(--ink);
-    box-shadow:0 3px 10px rgba(0,0,0,.35), inset 0 1px 1px rgba(255,255,255,.5);
-  }
-  .picker-chip.picker-any{
-    font-family:'Inter',sans-serif;
-    font-weight:600;
-    font-size:12px;
-    letter-spacing:.02em;
-    color:var(--cream-dim);
-  }
-  .picker-row.is-locked .picker-chip{
-    opacity:.4;
-    pointer-events:none;
-  }
-
-  .chip{
-    width:34px;height:34px;
-    border-radius:9px;
-    display:flex;align-items:center;justify-content:center;
-    font-family:'Fraunces', serif;
-    font-weight:600;
-    font-size:15px;
-    background:rgba(21,58,40,.75);
-    border:1px solid rgba(201,162,39,.35);
-    color:var(--cream-dim);
-    backdrop-filter:blur(6px);
-  }
-  .chip.chip-latest{
-    background:rgba(201,162,39,.9);
-    border-color:var(--gold-bright);
-    color:var(--ink);
-  }
-  .chip.chip-win{
-    background:rgba(95,173,95,.88);
-    border-color:#a9dba9;
-    color:#0c2410;
-  }
-  .chip.chip-lose{
-    background:rgba(21,58,40,.5);
-    border-color:rgba(201,162,39,.18);
-    color:var(--cream-dim);
-    opacity:.65;
-  }
-
-  .style-picker{
-    position:fixed;
-    top:max(22px, env(safe-area-inset-top));
-    right:16px;
-    z-index:6;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:9px;
-  }
-
-  .style-picker-label{
-    margin:0 0 1px;
-    font-size:9px;
-    letter-spacing:.14em;
-    text-transform:uppercase;
-    color:var(--cream-dim);
-    font-weight:600;
-    writing-mode:vertical-rl;
-    text-orientation:mixed;
-    opacity:.7;
-  }
-
-  .style-swatch{
-    width:32px;height:32px;
-    border-radius:50%;
-    border:2px solid rgba(237,230,214,.22);
-    cursor:pointer;
-    box-shadow:0 3px 9px rgba(0,0,0,.4);
-    transition:transform .12s ease, border-color .15s ease, box-shadow .15s ease;
-    padding:0;
-  }
-  .style-swatch:active{ transform:scale(.9); }
-  .style-swatch.is-active{
-    border-color:var(--gold-bright);
-    transform:scale(1.1);
-    box-shadow:0 0 0 3px rgba(201,162,39,.25), 0 3px 10px rgba(0,0,0,.45);
-  }
-  .style-ivory{ background:linear-gradient(160deg, #faf5eb, #ddd0aa); }
-  .style-onyx{ background:linear-gradient(160deg, #46464e, #131316); }
-  .style-ruby{ background:linear-gradient(160deg, #c24a4e, #591014); }
-
-  .hint{
-    position:fixed;
-    left:0;right:0;
-    bottom:calc(10px + env(safe-area-inset-bottom));
-    z-index:4;
-    text-align:center;
-    font-size:11px;
-    color:var(--cream-dim);
-    pointer-events:none;
-    letter-spacing:.02em;
-  }
-
-  @media (min-width:640px){
-    .history{ bottom:calc(198px + env(safe-area-inset-bottom)); }
-    .target-picker{ bottom:calc(104px + env(safe-area-inset-bottom)); }
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Telegram Web App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            max-width: 400px;
+            width: 100%;
+            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--tg-theme-button-color, #0088cc);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 36px;
+            color: var(--tg-theme-button-text-color, #ffffff);
+            font-weight: 600;
+        }
+        
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: var(--tg-theme-text-color, #000000);
+        }
+        
+        .info-grid {
+            display: grid;
+            gap: 12px;
+        }
+        
+        .info-item {
+            background: var(--tg-theme-bg-color, #ffffff);
+            padding: 12px 16px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .info-label {
+            font-weight: 500;
+            color: var(--tg-theme-hint-color, #999999);
+            font-size: 14px;
+        }
+        
+        .info-value {
+            font-weight: 600;
+            color: var(--tg-theme-text-color, #000000);
+            font-size: 14px;
+            word-break: break-all;
+            text-align: right;
+            max-width: 60%;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 13px;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-hint-color, #999999);
+        }
+        
+        .status.ready {
+            color: var(--tg-theme-button-color, #0088cc);
+        }
+        
+        .button {
+            margin-top: 16px;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background: var(--tg-theme-button-color, #0088cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        
+        .button:hover {
+            opacity: 0.8;
+        }
+        
+        .button:active {
+            transform: scale(0.98);
+        }
+        
+        .user-id {
+            font-size: 12px;
+            color: var(--tg-theme-hint-color, #999999);
+            text-align: center;
+            margin-top: 12px;
+            font-family: monospace;
+        }
+    </style>
 </head>
 <body>
-
-  <canvas id="scene"></canvas>
-  <div class="vignette"></div>
-
-  <div class="style-picker" id="stylePicker">
-    <p class="style-picker-label">Стиль</p>
-    <button type="button" class="style-swatch style-ivory is-active" data-style="ivory" aria-label="Слоновая кость" title="Слоновая кость"></button>
-    <button type="button" class="style-swatch style-onyx" data-style="onyx" aria-label="Оникс" title="Оникс"></button>
-    <button type="button" class="style-swatch style-ruby" data-style="ruby" aria-label="Рубин" title="Рубин"></button>
-  </div>
-
-  <div class="balance-pill">Баланс<span id="balanceValue">100</span></div>
-  <div class="casino-pill" id="casinoPill">Банк казино<span id="casinoValue">0</span></div>
-  <button type="button" class="players-toggle" id="playersToggle">
-    <span>Игроки</span><span class="count" id="playersCountBadge">8</span>
-  </button>
-
-  <div class="topbar">
-    <p class="eyebrow">Настольная игра</p>
-
-    <div class="timer-wrap" id="timerWrap">
-      <svg class="timer-ring" viewBox="0 0 80 80">
-        <circle class="timer-ring-bg" cx="40" cy="40" r="34"></circle>
-        <circle class="timer-ring-progress" id="timerProgress" cx="40" cy="40" r="34"></circle>
-      </svg>
-      <div class="timer-center"><span class="timer-number" id="timerNumber">7</span></div>
+    <div class="container">
+        <div class="avatar" id="userAvatar">👤</div>
+        <h2 id="userName">Загрузка...</h2>
+        
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">ID пользователя</span>
+                <span class="info-value" id="userId">—</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Имя</span>
+                <span class="info-value" id="userFirstName">—</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Фамилия</span>
+                <span class="info-value" id="userLastName">—</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Username</span>
+                <span class="info-value" id="userUsername">—</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Язык</span>
+                <span class="info-value" id="userLanguage">—</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Премиум</span>
+                <span class="info-value" id="userPremium">—</span>
+            </div>
+        </div>
+        
+        <div class="status" id="statusMessage">Инициализация...</div>
+        <button class="button" id="closeButton">Закрыть</button>
+        <div class="user-id" id="rawDataDisplay"></div>
     </div>
-    <p class="phase-label" id="phaseLabel">Приём ставок</p>
 
-    <div class="result-row">
-      <span class="result-number" id="resultNumber">–</span>
-    </div>
-    <p class="result-label" id="resultLabel">Готовимся к раунду…</p>
-  </div>
-
-  <div class="history" id="history"></div>
-
-  <div class="target-picker">
-    <p class="picker-label">Ваша ставка: чёт или нечет</p>
-    <div class="picker-row" id="pickerRow">
-      <button type="button" class="picker-chip picker-any is-active" data-value="">Без ставки</button>
-      <button type="button" class="picker-chip" data-value="even">Чёт</button>
-      <button type="button" class="picker-chip" data-value="odd">Нечет</button>
-    </div>
-  </div>
-
-  <p class="hint">Потяните стол пальцем, чтобы осмотреться</p>
-
-  <div class="players-panel" id="playersPanel">
-    <div class="players-panel-inner">
-      <div class="players-panel-header">
-        <p>Игроки за столом</p>
-        <button type="button" class="players-close" id="playersClose" aria-label="Закрыть">✕</button>
-      </div>
-      <p class="players-panel-sub">Банк казино: <span id="casinoValuePanel">0</span></p>
-      <div class="players-list" id="playersList"></div>
-    </div>
-  </div>
-
-  <div class="start-overlay" id="startOverlay">
-    <div class="start-card">
-      <p class="eyebrow">Настольная игра</p>
-      <h1>Бросок кубика</h1>
-      <p class="start-desc">7 секунд на приём ставок, 3 секунды на бросок кости. Ставьте на чёт или нечет вместе с 8 ботами за столом — угадали число — удвоили ставку!</p>
-      <button type="button" class="start-btn" id="startBtn">Начать игру</button>
-    </div>
-  </div>
-
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
-
-<script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-
-/* ---------- DOM ---------- */
-const canvas = document.getElementById('scene');
-const resultNumber = document.getElementById('resultNumber');
-const resultLabel = document.getElementById('resultLabel');
-const historyEl = document.getElementById('history');
-const pickerRow = document.getElementById('pickerRow');
-const pickerChips = Array.from(pickerRow.querySelectorAll('.picker-chip'));
-const timerWrap = document.getElementById('timerWrap');
-const timerProgress = document.getElementById('timerProgress');
-const timerNumber = document.getElementById('timerNumber');
-const phaseLabel = document.getElementById('phaseLabel');
-const balanceValue = document.getElementById('balanceValue');
-const casinoValue = document.getElementById('casinoValue');
-const casinoValuePanel = document.getElementById('casinoValuePanel');
-const startOverlay = document.getElementById('startOverlay');
-const startBtn = document.getElementById('startBtn');
-const playersToggle = document.getElementById('playersToggle');
-const playersPanel = document.getElementById('playersPanel');
-const playersClose = document.getElementById('playersClose');
-const playersList = document.getElementById('playersList');
-
-playersToggle.addEventListener('click', () => playersPanel.classList.add('is-open'));
-playersClose.addEventListener('click', () => playersPanel.classList.remove('is-open'));
-playersPanel.addEventListener('click', (e) => {
-  if (e.target === playersPanel) playersPanel.classList.remove('is-open');
-});
-
-let selectedTarget = null; // null = без ставки, 'even' | 'odd'
-pickerChips.forEach(chip => {
-  chip.addEventListener('click', () => {
-    if (pickerRow.classList.contains('is-locked')) return;
-    pickerChips.forEach(c => c.classList.remove('is-active'));
-    chip.classList.add('is-active');
-    const raw = chip.dataset.value;
-    selectedTarget = raw || null;
-  });
-});
-
-function setPickerLocked(locked) {
-  pickerRow.classList.toggle('is-locked', locked);
-}
-
-const stylePicker = document.getElementById('stylePicker');
-const styleSwatches = Array.from(stylePicker.querySelectorAll('.style-swatch'));
-styleSwatches.forEach(sw => {
-  sw.addEventListener('click', () => {
-    if (sw.classList.contains('is-active')) return;
-    styleSwatches.forEach(s => s.classList.remove('is-active'));
-    sw.classList.add('is-active');
-    applyDiceStyle(sw.dataset.style);
-  });
-});
-
-/* ---------- renderer / scene / camera ---------- */
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a2016);
-scene.fog = new THREE.Fog(0x0a2016, 9, 18);
-
-const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(0, 6.4, 7.6);
-
-function resize() {
-  const w = window.innerWidth, h = window.innerHeight;
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-  renderer.setSize(w, h);
-}
-window.addEventListener('resize', resize);
-resize();
-
-/* ---------- lights ---------- */
-scene.add(new THREE.HemisphereLight(0xfff3d6, 0x0a2016, 0.55));
-
-const key = new THREE.DirectionalLight(0xfff1d0, 1.5);
-key.position.set(4.5, 8, 3.5);
-key.castShadow = true;
-key.shadow.mapSize.set(1024, 1024);
-key.shadow.camera.near = 1;
-key.shadow.camera.far = 20;
-key.shadow.camera.left = -6;
-key.shadow.camera.right = 6;
-key.shadow.camera.top = 6;
-key.shadow.camera.bottom = -6;
-key.shadow.radius = 4;
-scene.add(key);
-
-const fill = new THREE.DirectionalLight(0xc9a227, 0.4);
-fill.position.set(-5, 3, -4);
-scene.add(fill);
-
-/* ---------- table ---------- */
-const table = new THREE.Mesh(
-  new THREE.CylinderGeometry(4.6, 4.75, 0.4, 72),
-  new THREE.MeshStandardMaterial({ color: 0x153a28, roughness: 0.92, metalness: 0.04 })
-);
-table.position.y = -0.2;
-table.receiveShadow = true;
-scene.add(table);
-
-const rim = new THREE.Mesh(
-  new THREE.TorusGeometry(4.62, 0.075, 16, 96),
-  new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.3, metalness: 0.85 })
-);
-rim.rotation.x = Math.PI / 2;
-rim.position.y = 0.01;
-scene.add(rim);
-
-const feltDetail = new THREE.Mesh(
-  new THREE.CircleGeometry(4.5, 72),
-  new THREE.MeshStandardMaterial({ color: 0x0f2e1f, roughness: 1, metalness: 0 })
-);
-feltDetail.rotation.x = -Math.PI / 2;
-feltDetail.position.y = 0.005;
-feltDetail.receiveShadow = true;
-scene.add(feltDetail);
-
-/* ---------- dice face textures (pips) ---------- */
-function roundRectPath(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-const PIP_LAYOUTS = {
-  1: [[0.5, 0.5]],
-  2: [[0.24, 0.24], [0.76, 0.76]],
-  3: [[0.24, 0.24], [0.5, 0.5], [0.76, 0.76]],
-  4: [[0.24, 0.24], [0.76, 0.24], [0.24, 0.76], [0.76, 0.76]],
-  5: [[0.24, 0.24], [0.76, 0.24], [0.5, 0.5], [0.24, 0.76], [0.76, 0.76]],
-  6: [[0.24, 0.22], [0.76, 0.22], [0.24, 0.5], [0.76, 0.5], [0.24, 0.78], [0.76, 0.78]],
-};
-
-const DICE_STYLES = {
-  ivory: {
-    name: 'Слоновая кость',
-    bodyFrom: '#f8f3e8', bodyTo: '#eae1cb',
-    borderColor: 'rgba(201,162,39,.4)',
-    pipFrom: '#3a3324', pipTo: '#141109',
-    aceFrom: '#c3402f', aceTo: '#7d1f16',
-    roughness: 0.35, metalness: 0.06,
-  },
-  onyx: {
-    name: 'Оникс',
-    bodyFrom: '#414147', bodyTo: '#17171a',
-    borderColor: 'rgba(201,162,39,.55)',
-    pipFrom: '#f0cf7e', pipTo: '#a9791c',
-    aceFrom: '#f0cf7e', aceTo: '#a9791c',
-    roughness: 0.22, metalness: 0.4,
-  },
-  ruby: {
-    name: 'Рубин',
-    bodyFrom: '#b23a3f', bodyTo: '#530f13',
-    borderColor: 'rgba(245,239,226,.4)',
-    pipFrom: '#faf4e6', pipTo: '#cdbfa0',
-    aceFrom: '#faf4e6', aceTo: '#cdbfa0',
-    roughness: 0.4, metalness: 0.08,
-  },
-};
-
-function makeFaceTexture(pips, style) {
-  const size = 256;
-  const c = document.createElement('canvas');
-  c.width = size; c.height = size;
-  const ctx = c.getContext('2d');
-
-  const grad = ctx.createLinearGradient(0, 0, size, size);
-  grad.addColorStop(0, style.bodyFrom);
-  grad.addColorStop(1, style.bodyTo);
-  ctx.fillStyle = grad;
-  roundRectPath(ctx, 0, 0, size, size, 40);
-  ctx.fill();
-
-  ctx.strokeStyle = style.borderColor;
-  ctx.lineWidth = 5;
-  roundRectPath(ctx, 5, 5, size - 10, size - 10, 34);
-  ctx.stroke();
-
-  const isAce = pips === 1;
-  const r = size * 0.088;
-  PIP_LAYOUTS[pips].forEach(([px, py]) => {
-    const x = px * size, y = py * size;
-    const pipGrad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
-    pipGrad.addColorStop(0, isAce ? style.aceFrom : style.pipFrom);
-    pipGrad.addColorStop(1, isAce ? style.aceTo : style.pipTo);
-    ctx.fillStyle = pipGrad;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  return tex;
-}
-
-/* face order for Box/RoundedBox groups: [+X, -X, +Y, -Y, +Z, -Z]
-   opposite faces sum to 7 -> +X:1/-X:6, +Y:2/-Y:5, +Z:3/-Z:4 */
-function buildFaceMaterials(styleKey) {
-  const style = DICE_STYLES[styleKey];
-  return [1, 6, 2, 5, 3, 4].map(
-    n => new THREE.MeshStandardMaterial({
-      map: makeFaceTexture(n, style),
-      roughness: style.roughness,
-      metalness: style.metalness,
-    })
-  );
-}
-
-/* ---------- dice mesh ---------- */
-const DICE_SIZE = 1.55;
-const diceGeo = new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, 5, 0.16);
-let currentDiceStyle = 'ivory';
-const dice = new THREE.Mesh(diceGeo, buildFaceMaterials(currentDiceStyle));
-dice.castShadow = true;
-const REST_Y = DICE_SIZE / 2 + 0.02;
-dice.position.set(0, REST_Y, 0);
-dice.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI * 0.15);
-scene.add(dice);
-
-function disposeMaterials(materials) {
-  materials.forEach(m => {
-    if (m.map) m.map.dispose();
-    m.dispose();
-  });
-}
-
-function applyDiceStyle(styleKey) {
-  if (styleKey === currentDiceStyle || !DICE_STYLES[styleKey]) return;
-  const oldMaterials = dice.material;
-  dice.material = buildFaceMaterials(styleKey);
-  disposeMaterials(oldMaterials);
-  currentDiceStyle = styleKey;
-  playClick();
-}
-
-/* soft contact shadow blob (extra grounding under the dice) */
-const blobTex = (() => {
-  const s = 128;
-  const c = document.createElement('canvas'); c.width = s; c.height = s;
-  const ctx = c.getContext('2d');
-  const g = ctx.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
-  g.addColorStop(0, 'rgba(0,0,0,.45)');
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, s, s);
-  return new THREE.CanvasTexture(c);
-})();
-const blob = new THREE.Mesh(
-  new THREE.PlaneGeometry(2.6, 2.6),
-  new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false })
-);
-blob.rotation.x = -Math.PI / 2;
-blob.position.y = 0.02;
-scene.add(blob);
-
-/* ---------- camera controls ---------- */
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 0.5, 0);
-controls.enablePan = false;
-controls.enableZoom = false;
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
-controls.rotateSpeed = 0.55;
-controls.minPolarAngle = Math.PI * 0.18;
-controls.maxPolarAngle = Math.PI * 0.42;
-controls.minAzimuthAngle = -Math.PI * 0.45;
-controls.maxAzimuthAngle = Math.PI * 0.45;
-controls.update();
-
-/* ---------- audio (tiny synth, no assets) ---------- */
-let audioCtx = null;
-function ensureAudio() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-  return audioCtx;
-}
-function playClick() {
-  const ctx = ensureAudio();
-  const t = ctx.currentTime;
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(520, t);
-  gain.gain.setValueAtTime(0.12, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-  osc.connect(gain).connect(ctx.destination);
-  osc.start(t); osc.stop(t + 0.09);
-}
-function playRattle(duration) {
-  const ctx = ensureAudio();
-  const ticks = Math.floor(duration * 14);
-  for (let i = 0; i < ticks; i++) {
-    const delay = (i / ticks) * duration * (0.85 + Math.random() * 0.3);
-    setTimeout(() => {
-      if (ctx.state === 'closed') return;
-      const t = ctx.currentTime;
-      const bufferSize = 512;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let j = 0; j < bufferSize; j++) data[j] = (Math.random() * 2 - 1) * (1 - j / bufferSize);
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.18 + Math.random() * 0.1, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-      noise.connect(gain).connect(ctx.destination);
-      noise.start(t);
-    }, delay * 1000);
-  }
-}
-function playThud() {
-  const ctx = ensureAudio();
-  const t = ctx.currentTime;
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(180, t);
-  osc.frequency.exponentialRampToValueAtTime(42, t + 0.18);
-  gain.gain.setValueAtTime(0.55, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-  osc.connect(gain).connect(ctx.destination);
-  osc.start(t); osc.stop(t + 0.32);
-}
-
-/* ---------- roll math ---------- */
-const AXIS_X = new THREE.Vector3(1, 0, 0);
-const AXIS_Y = new THREE.Vector3(0, 1, 0);
-const AXIS_Z = new THREE.Vector3(0, 0, 1);
-
-function targetQuatFor(value) {
-  const face = new THREE.Quaternion();
-  switch (value) {
-    case 1: face.setFromAxisAngle(AXIS_Z, Math.PI / 2); break;
-    case 2: face.identity(); break;
-    case 3: face.setFromAxisAngle(AXIS_X, -Math.PI / 2); break;
-    case 4: face.setFromAxisAngle(AXIS_X, Math.PI / 2); break;
-    case 5: face.setFromAxisAngle(AXIS_X, Math.PI); break;
-    case 6: face.setFromAxisAngle(AXIS_Z, -Math.PI / 2); break;
-  }
-  const yaw = new THREE.Quaternion().setFromAxisAngle(AXIS_Y, Math.random() * Math.PI * 2);
-  return yaw.multiply(face);
-}
-
-const LABELS = {
-  1: 'Выпала единица', 2: 'Выпала двойка', 3: 'Выпала тройка',
-  4: 'Выпала четвёрка', 5: 'Выпала пятёрка', 6: 'Выпала шестёрка',
-};
-
-/* ---------- game / betting state ---------- */
-const BET_PHASE_MS = 7000;
-const ROLL_PHASE_MS = 3000;
-const STAKE = 10;
-const BET_LABELS = { even: 'Чёт', odd: 'Нечет' };
-
-let gameStarted = false;
-let phase = 'betting'; // 'betting' | 'rolling'
-let phaseStartTime = 0;
-let roundBet = null; // 'even' | 'odd' | null
-let balance = 100;
-let playerDelta = 0;
-let casinoBalance = 0;
-
-const EVEN_VALUES = [2, 4, 6];
-const ODD_VALUES = [1, 3, 5];
-
-function updateCasinoUI() {
-  casinoValue.textContent = casinoBalance;
-  casinoValuePanel.textContent = casinoBalance;
-  casinoValue.classList.toggle('is-down', casinoBalance < 0);
-}
-
-const bots = Array.from({ length: 8 }, (_, i) => ({
-  name: `Бот ${i + 1}`,
-  balance: 100,
-  bet: null,
-  delta: 0,
-  active: true,
-}));
-const playersCountBadge = document.getElementById('playersCountBadge');
-
-function updateBalanceUI() {
-  balanceValue.textContent = balance;
-}
-
-function outcomeFor(bet, value) {
-  if (bet == null) return 'none';
-  const parity = value % 2 === 0 ? 'even' : 'odd';
-  return bet === parity ? 'win' : 'lose';
-}
-
-function placeBotBets() {
-  bots.forEach(b => {
-    b.delta = 0;
-    if (!b.active) { b.bet = null; return; }
-    b.bet = Math.random() < 0.5 ? 'even' : 'odd';
-  });
-}
-
-function settleBots(value) {
-  bots.forEach(b => {
-    if (!b.active) { b.delta = 0; return; }
-    const outcome = outcomeFor(b.bet, value);
-    if (outcome === 'win') { b.balance += STAKE; b.delta = STAKE; }
-    else if (outcome === 'lose') {
-      b.balance = Math.max(0, b.balance - STAKE);
-      b.delta = -STAKE;
-      if (b.balance <= 0) b.active = false;
-    }
-    else { b.delta = 0; }
-  });
-}
-
-function renderPlayers() {
-  playersList.innerHTML = '';
-  const rows = [
-    { name: 'Вы', balance, bet: roundBet, delta: playerDelta, isPlayer: true, active: true },
-    ...bots.map(b => ({ name: b.name, balance: b.balance, bet: b.bet, delta: b.delta, isPlayer: false, active: b.active })),
-  ];
-  const player = rows[0];
-  const sortedBots = rows.slice(1).sort((a, b) => b.balance - a.balance);
-  [player, ...sortedBots].forEach(r => {
-    const row = document.createElement('div');
-    row.className = 'player-row' + (r.isPlayer ? ' is-player' : '') + (!r.active ? ' is-eliminated' : '');
-    const betText = !r.active ? 'Выбыл' : (r.bet == null ? '—' : BET_LABELS[r.bet]);
-    const deltaClass = r.delta > 0 ? 'is-up' : (r.delta < 0 ? 'is-down' : '');
-    row.innerHTML =
-      `<span class="player-name">${r.name}</span>` +
-      `<span class="player-bet">${betText}</span>` +
-      `<span class="player-balance ${deltaClass}">${r.balance}</span>`;
-    playersList.appendChild(row);
-  });
-  const activeCount = bots.filter(b => b.active).length;
-  playersCountBadge.textContent = `${activeCount}/8`;
-}
-renderPlayers();
-
-const RING_RADIUS = 34;
-const RING_CIRC = 2 * Math.PI * RING_RADIUS;
-timerProgress.style.strokeDasharray = `${RING_CIRC}`;
-
-function setTimerRing(fraction, seconds, urgent) {
-  const clamped = Math.max(0, Math.min(1, fraction));
-  timerProgress.style.strokeDashoffset = `${RING_CIRC * (1 - clamped)}`;
-  timerNumber.textContent = seconds;
-  timerWrap.classList.toggle('is-urgent', urgent);
-}
-
-function startNewBettingPhase() {
-  phase = 'betting';
-  phaseStartTime = performance.now();
-  roundBet = selectedTarget;
-  playerDelta = 0;
-  placeBotBets();
-  timerProgress.classList.remove('is-rolling');
-  phaseLabel.textContent = 'Приём ставок';
-  resultLabel.textContent = 'Ставки открыты';
-  setPickerLocked(false);
-  renderPlayers();
-}
-
-function lockBetsAndRoll() {
-  phase = 'rolling';
-  phaseStartTime = performance.now();
-  roundBet = selectedTarget;
-  setPickerLocked(true);
-  timerProgress.classList.add('is-rolling');
-  phaseLabel.textContent = 'Бросок кости';
-
-  let totalEven = 0, totalOdd = 0;
-  if (roundBet === 'even') totalEven += STAKE;
-  else if (roundBet === 'odd') totalOdd += STAKE;
-  bots.forEach(b => {
-    if (!b.active) return;
-    if (b.bet === 'even') totalEven += STAKE;
-    else totalOdd += STAKE;
-  });
-
-  let winningParity;
-  if (totalEven < totalOdd) winningParity = 'even';
-  else if (totalOdd < totalEven) winningParity = 'odd';
-  else winningParity = Math.random() < 0.5 ? 'even' : 'odd';
-
-  const pool = winningParity === 'even' ? EVEN_VALUES : ODD_VALUES;
-  const forcedValue = pool[Math.floor(Math.random() * pool.length)];
-
-  renderPlayers();
-  startRoll(forcedValue);
-}
-
-function evaluateRound(value) {
-  const outcome = outcomeFor(roundBet, value);
-  if (outcome === 'win') {
-    balance += STAKE;
-    playerDelta = STAKE;
-    updateBalanceUI();
-    return { outcome, text: `Верно! +${STAKE}` };
-  }
-  if (outcome === 'lose') {
-    balance = Math.max(0, balance - STAKE);
-    playerDelta = -STAKE;
-    updateBalanceUI();
-    return { outcome, text: `Мимо. −${STAKE}` };
-  }
-  playerDelta = 0;
-  return { outcome, text: 'Ставка не сделана' };
-}
-
-function updateGameLoop(now) {
-  if (!gameStarted) return;
-  const elapsed = now - phaseStartTime;
-
-  if (phase === 'betting') {
-    const remaining = Math.max(0, BET_PHASE_MS - elapsed);
-    const seconds = Math.ceil(remaining / 1000);
-    setTimerRing(remaining / BET_PHASE_MS, seconds, remaining <= 2000);
-    if (elapsed >= BET_PHASE_MS) lockBetsAndRoll();
-  } else {
-    const remaining = Math.max(0, ROLL_PHASE_MS - elapsed);
-    const seconds = Math.ceil(remaining / 1000);
-    setTimerRing(remaining / ROLL_PHASE_MS, seconds, false);
-    if (elapsed >= ROLL_PHASE_MS) startNewBettingPhase();
-  }
-}
-
-let rollAnim = null;
-const history = [];
-
-function startRoll(forcedValue) {
-  if (rollAnim) return;
-  const value = forcedValue || (1 + Math.floor(Math.random() * 6));
-  rollAnim = {
-    value,
-    targetQ: targetQuatFor(value),
-    elapsed: 0,
-    tumbleDuration: 0.72,
-    settleDuration: 0.48,
-    spinAxis: new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 0.6 + 0.6, Math.random() * 2 - 1).normalize(),
-    spinSpeed: 15 + Math.random() * 7,
-    settleStartQ: null,
-    settleStartY: null,
-  };
-  resultLabel.textContent = 'Кубик катится…';
-  resultNumber.classList.add('is-rolling');
-  playClick();
-  playRattle(rollAnim.tumbleDuration);
-}
-
-function settleCasino(value) {
-  const parity = value % 2 === 0 ? 'even' : 'odd';
-  if (roundBet != null) casinoBalance += (roundBet === parity ? -STAKE : STAKE);
-  bots.forEach(b => {
-    if (b.bet == null) return;
-    casinoBalance += (b.bet === parity ? -STAKE : STAKE);
-  });
-  updateCasinoUI();
-}
-
-function finishRoll(value) {
-  resultNumber.textContent = value;
-  resultNumber.classList.remove('is-rolling');
-  const round = evaluateRound(value);
-  settleBots(value);
-  settleCasino(value);
-  renderPlayers();
-  const parity = value % 2 === 0 ? 'Чёт' : 'Нечет';
-  resultLabel.textContent = `${LABELS[value]} · ${parity} · ${round.text}`;
-  history.unshift({ value, outcome: round.outcome });
-  if (history.length > 8) history.pop();
-  renderHistory();
-  playThud();
-  if (navigator.vibrate) navigator.vibrate(35);
-}
-
-function renderHistory() {
-  historyEl.innerHTML = '';
-  history.forEach(({ value, outcome }, i) => {
-    const chip = document.createElement('span');
-    let cls = 'chip';
-    if (outcome === 'win') cls += ' chip-win';
-    else if (outcome === 'lose') cls += ' chip-lose';
-    else if (i === 0) cls += ' chip-latest';
-    chip.className = cls;
-    chip.textContent = value;
-    historyEl.appendChild(chip);
-  });
-}
-
-function updateRoll(dt) {
-  if (!rollAnim) {
-    const idle = performance.now() * 0.0011;
-    dice.position.y = REST_Y + Math.sin(idle) * 0.015;
-    blob.position.set(dice.position.x, 0.02, dice.position.z);
-    const s = 1 - Math.min(0.12, (dice.position.y - REST_Y) * 0.4);
-    blob.scale.setScalar(s);
-    return;
-  }
-
-  rollAnim.elapsed += dt;
-  const { tumbleDuration, settleDuration } = rollAnim;
-  const total = tumbleDuration + settleDuration;
-
-  if (rollAnim.elapsed < tumbleDuration) {
-    const t = rollAnim.elapsed / tumbleDuration;
-    const speedFactor = 1 - t * 0.55;
-    const angle = rollAnim.spinSpeed * speedFactor * dt;
-    const deltaQ = new THREE.Quaternion().setFromAxisAngle(rollAnim.spinAxis, angle);
-    dice.quaternion.premultiply(deltaQ);
-    const bounces = 3.4;
-    const decay = Math.pow(1 - t, 1.6);
-    const hop = Math.abs(Math.sin(t * Math.PI * bounces)) * decay;
-    dice.position.y = REST_Y + hop * 1.45;
-    dice.position.x = Math.sin(t * 9) * 0.4 * decay;
-    dice.position.z = Math.cos(t * 7) * 0.34 * decay;
-  } else if (rollAnim.elapsed < total) {
-    if (!rollAnim.settleStartQ) {
-      rollAnim.settleStartQ = dice.quaternion.clone();
-      rollAnim.settleStartY = dice.position.y;
-      rollAnim.settleStartX = dice.position.x;
-      rollAnim.settleStartZ = dice.position.z;
-    }
-    const t = (rollAnim.elapsed - tumbleDuration) / settleDuration;
-    const e = 1 - Math.pow(1 - t, 3);
-    dice.quaternion.copy(rollAnim.settleStartQ).slerp(rollAnim.targetQ, e);
-    dice.position.y = THREE.MathUtils.lerp(rollAnim.settleStartY, REST_Y, e);
-    dice.position.x = THREE.MathUtils.lerp(rollAnim.settleStartX, 0, e);
-    dice.position.z = THREE.MathUtils.lerp(rollAnim.settleStartZ, 0, e);
-  } else {
-    dice.quaternion.copy(rollAnim.targetQ);
-    dice.position.set(0, REST_Y, 0);
-    const value = rollAnim.value;
-    rollAnim = null;
-    finishRoll(value);
-  }
-
-  blob.position.set(dice.position.x, 0.02, dice.position.z);
-  const shrink = Math.max(0.35, 1 - (dice.position.y - REST_Y) * 0.35);
-  blob.scale.setScalar(shrink);
-}
-
-startBtn.addEventListener('click', () => {
-  ensureAudio();
-  startOverlay.classList.add('is-hidden');
-  gameStarted = true;
-  startNewBettingPhase();
-}, { once: true });
-
-/* ---------- render loop ---------- */
-const clock = new THREE.Clock();
-function tick() {
-  const dt = Math.min(clock.getDelta(), 0.05);
-  updateGameLoop(performance.now());
-  updateRoll(dt);
-  controls.update();
-  renderer.render(scene, camera);
-  requestAnimationFrame(tick);
-}
-tick();
-</script>
+    <script>
+        // Инициализация Telegram Web App
+        const tg = window.Telegram.WebApp;
+        
+        // Расширяем приложение на весь экран
+        tg.expand();
+        
+        // Получаем данные пользователя
+        const user = tg.initDataUnsafe?.user;
+        
+        // Элементы для отображения
+        const userNameEl = document.getElementById('userName');
+        const userIdEl = document.getElementById('userId');
+        const userFirstNameEl = document.getElementById('userFirstName');
+        const userLastNameEl = document.getElementById('userLastName');
+        const userUsernameEl = document.getElementById('userUsername');
+        const userLanguageEl = document.getElementById('userLanguage');
+        const userPremiumEl = document.getElementById('userPremium');
+        const userAvatarEl = document.getElementById('userAvatar');
+        const statusMessageEl = document.getElementById('statusMessage');
+        const rawDataDisplayEl = document.getElementById('rawDataDisplay');
+        
+        // Функция для обновления интерфейса
+        function updateUserInfo(userData) {
+            if (!userData) {
+                statusMessageEl.textContent = '❌ Данные пользователя не найдены';
+                statusMessageEl.className = 'status';
+                return;
+            }
+            
+            // Основная информация
+            const firstName = userData.first_name || 'Не указано';
+            const lastName = userData.last_name || '';
+            const username = userData.username || 'Отсутствует';
+            const userId = userData.id || 'Неизвестно';
+            const languageCode = userData.language_code || 'Неизвестно';
+            const isPremium = userData.is_premium ? '✅ Да' : '❌ Нет';
+            
+            // Отображаем имя пользователя
+            const fullName = lastName ? `${firstName} ${lastName}` : firstName;
+            userNameEl.textContent = fullName;
+            
+            // Заполняем все поля
+            userIdEl.textContent = userId;
+            userFirstNameEl.textContent = firstName;
+            userLastNameEl.textContent = lastName || '—';
+            userUsernameEl.textContent = username;
+            userLanguageEl.textContent = languageCode;
+            userPremiumEl.textContent = isPremium;
+            
+            // Устанавливаем аватар (первая буква имени)
+            const firstLetter = firstName.charAt(0).toUpperCase();
+            userAvatarEl.textContent = firstLetter || '👤';
+            
+            // Статус
+            statusMessageEl.textContent = '✅ Данные успешно загружены';
+            statusMessageEl.className = 'status ready';
+            
+            // Показываем сырые данные для отладки (можно убрать в продакшене)
+            rawDataDisplayEl.textContent = `Raw: ${tg.initData || 'Нет данных'}`;
+            
+            // Отправляем событие о готовности
+            tg.ready();
+        }
+        
+        // Проверяем наличие данных
+        if (user) {
+            updateUserInfo(user);
+        } else {
+            // Пробуем получить данные через initData
+            const initData = tg.initData;
+            if (initData) {
+                try {
+                    // Парсим query string
+                    const params = new URLSearchParams(initData);
+                    const userParam = params.get('user');
+                    if (userParam) {
+                        const parsedUser = JSON.parse(decodeURIComponent(userParam));
+                        updateUserInfo(parsedUser);
+                    } else {
+                        statusMessageEl.textContent = '❌ Данные пользователя отсутствуют';
+                        statusMessageEl.className = 'status';
+                    }
+                } catch (e) {
+                    statusMessageEl.textContent = '❌ Ошибка парсинга данных';
+                    statusMessageEl.className = 'status';
+                    console.error('Parse error:', e);
+                }
+            } else {
+                statusMessageEl.textContent = '❌ Данные пользователя недоступны';
+                statusMessageEl.className = 'status';
+            }
+        }
+        
+        // Обработчик кнопки закрытия
+        document.getElementById('closeButton').addEventListener('click', () => {
+            tg.close();
+        });
+        
+        // Обработка изменения темы
+        tg.onEvent('themeChanged', () => {
+            // Тема обновляется автоматически через CSS переменные
+            console.log('Theme changed');
+        });
+        
+        // Логируем информацию для отладки
+        console.log('Telegram Web App initialized');
+        console.log('User data:', user);
+        console.log('Init data:', tg.initData);
+        console.log('Theme params:', tg.themeParams);
+    </script>
 </body>
 </html>
