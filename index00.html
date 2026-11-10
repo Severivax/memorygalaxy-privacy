@@ -1,1 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Цветная заливка</title>
+<style>
+:root{--bg:#f4f5f9;--card:#fff;--text:#1c2030;--muted:#6b7188;--accent:#4f46e5;--shadow:0 6px 20px rgba(20,25,60,.12);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12141c;--card:#1d2030;--text:#eceefa;--muted:#9aa0bb;--accent:#818cf8;--shadow:0 6px 20px rgba(0,0,0,.4)}}
+:root[data-theme="dark"]{--bg:#12141c;--card:#1d2030;--text:#eceefa;--muted:#9aa0bb;--accent:#818cf8;--shadow:0 6px 20px rgba(0,0,0,.4)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;touch-action:manipulation;user-select:none}
+.app{width:100%;max-width:560px;padding:14px;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center}
+.top{width:100%;display:flex;gap:10px}
+.stat{flex:1;background:var(--card);border-radius:14px;padding:8px 12px;box-shadow:var(--shadow);text-align:center}
+.stat small{display:block;color:var(--muted);font-size:12px}
+.stat b{font-size:22px}
+.stat.low b{color:#ef4444}
+.board{display:grid;gap:3px;width:min(100%,52vh,520px);aspect-ratio:1;background:var(--card);padding:6px;border-radius:16px;box-shadow:var(--shadow)}
+.cell{border-radius:20%;transition:background-color .1s}
+.cell.wall{background:repeating-linear-gradient(45deg,#4a5068 0 5px,#3a3f55 5px 10px)}
+.cell.fix{background-image:radial-gradient(circle,#fff 0 24%,transparent 26%);box-shadow:inset 0 0 0 3px rgba(255,255,255,.9)}
+.goal{display:none;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+.goal i{width:18px;height:18px;border-radius:5px;box-shadow:inset 0 0 0 2px rgba(255,255,255,.9),0 0 0 1px var(--muted)}
+.pad{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%}
+.pad button{width:clamp(44px,13vw,64px);aspect-ratio:1;border:0;border-radius:16px;font-size:24px;color:rgba(255,255,255,.85);cursor:pointer;box-shadow:var(--shadow);transition:transform .1s}
+.pad button:active{transform:scale(.9)}
+.pad button.cur{outline:4px solid var(--text);opacity:.35;pointer-events:none}
+.row{display:flex;gap:10px}
+.btn{background:var(--card);color:var(--text);border:0;border-radius:12px;padding:10px 16px;font-size:15px;box-shadow:var(--shadow);cursor:pointer}
+.btn.main{background:var(--accent);color:#fff}
+.hint{color:var(--muted);font-size:13px;text-align:center;margin:0}
+.ov{position:fixed;inset:0;background:rgba(10,12,25,.6);display:none;align-items:center;justify-content:center;padding:20px}
+.ov.show{display:flex}
+.modal{background:var(--card);border-radius:20px;padding:24px;text-align:center;max-width:320px;width:100%;box-shadow:var(--shadow)}
+.modal h2{margin:0 0 6px;font-size:26px}
+.modal p{color:var(--muted);margin:0 0 18px}
+.modal .row{justify-content:center}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="stat"><small>Уровень</small><b id="lvl">1</b></div>
+    <div class="stat" id="mv"><small>Ходов осталось</small><b id="left">0</b></div>
+  </div>
+  <div class="board" id="board"></div>
+  <div class="goal" id="goal">Блоки с кружком не перекрашиваются. Закончите их цветом: <i id="gsw"></i></div>
+  <p class="hint">Заливайте с левого верхнего угла: выбирайте цвет, пока всё поле не станет одноцветным. Полосатые блоки — стены, через них заливка не проходит.</p>
+  <div class="pad" id="pad"></div>
+  <div class="row">
+    <button class="btn" id="undo">↶ Отмена</button>
+    <button class="btn" id="restart">⟳ Заново</button>
+  </div>
+</div>
+<div class="ov" id="ov"><div class="modal"><h2 id="ot"></h2><p id="om"></p><div class="row"><button class="btn" id="again">Ещё раз</button><button class="btn main" id="next">Дальше</button></div></div></div>
+<script>
+const COLORS=['#ef4444','#3b82f6','#22c55e','#facc15','#a855f7','#f97316'];
+const SYMS=['●','▲','■','◆','★','✚'];
+const $=id=>document.getElementById(id);
+let level=1,size,nc,grid,left,hist=[],start,done=false,shown=[],wall=[],fix=[],target=0;
+try{level=Math.max(1,parseInt(localStorage.getItem('flood_level'))||1)}catch(e){}
 
+function connected(){
+  const n=size*size,seen=new Set([0]),q=[0];
+  while(q.length){
+    const i=q.pop(),x=i%size,y=(i/size)|0;
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=size||ny>=size)continue;
+      const j=ny*size+nx;
+      if(!wall[j]&&!seen.has(j)){seen.add(j);q.push(j)}
+    }
+  }
+  return seen.size===n-wall.filter(Boolean).length;
+}
+function newLevel(){
+  size=Math.min(6+level,14);nc=Math.min(4+Math.floor((level-1)/3),6);
+  const n=size*size,
+    nw=level>=3?Math.min(Math.floor(n*(0.04+0.01*Math.min(level-3,6))),22):0,
+    nf=level>=5?Math.min(1+Math.floor((level-5)/3),4):0;
+  target=Math.floor(Math.random()*nc);
+  do{
+    grid=Array.from({length:n},()=>Math.floor(Math.random()*nc));
+    wall=new Array(n).fill(false);fix=new Array(n).fill(false);
+    const free=[...Array(n).keys()].slice(1).sort(()=>Math.random()-.5);
+    free.slice(0,nw).forEach(i=>{wall[i]=true;grid[i]=-1});
+    free.slice(nw,nw+nf).forEach(i=>{fix[i]=true;grid[i]=target});
+  }while(!connected());
+  start=grid.slice();reset();
+}
+function reset(){
+  grid=start.slice();hist=[];done=false;
+  left=Math.ceil(size*nc*0.3)+2+(fix.some(Boolean)?3:0);
+  $('ov').classList.remove('show');
+  build();render();
+}
+function build(){
+  const b=$('board');b.style.gridTemplateColumns=`repeat(${size},1fr)`;b.innerHTML='';shown=[];
+  for(let i=0;i<size*size;i++){const d=document.createElement('div');d.className='cell'+(wall[i]?' wall':'')+(fix[i]?' fix':'');b.appendChild(d)}
+  $('goal').style.display=fix.some(Boolean)?'flex':'none';$('gsw').style.background=COLORS[target];
+  const p=$('pad');p.innerHTML='';
+  for(let c=0;c<nc;c++){const x=document.createElement('button');x.style.background=COLORS[c];x.textContent=SYMS[c];x.onclick=()=>move(c);p.appendChild(x)}
+}
+function render(){
+  const cells=$('board').children;
+  for(let i=0;i<grid.length;i++){if(!wall[i]&&shown[i]!==grid[i]){cells[i].style.backgroundColor=COLORS[grid[i]];shown[i]=grid[i]}}
+  $('lvl').textContent=level;$('left').textContent=left;
+  $('mv').classList.toggle('low',left<=3);
+  [...$('pad').children].forEach((b,c)=>b.classList.toggle('cur',c===grid[0]));
+}
+function flood(c){
+  const old=grid[0],seen=new Set([0]),q=[0];
+  while(q.length){
+    const i=q.pop(),x=i%size,y=(i/size)|0;
+    if(!fix[i])grid[i]=c;
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=size||ny>=size)continue;
+      const j=ny*size+nx;
+      if(!seen.has(j)&&grid[j]===old){seen.add(j);q.push(j)}
+    }
+  }
+  return seen;
+}
+function move(c){
+  if(done||c===grid[0])return;
+  hist.push({g:grid.slice(),l:left});
+  flood(c);left--;render();
+  if(grid.every(v=>v<0||v===grid[0]))return end(true);
+  if(left<=0)end(false);
+}
+function end(win){
+  done=true;
+  if(win){level++;try{localStorage.setItem('flood_level',level)}catch(e){}}
+  $('ot').textContent=win?'Победа! 🎉':'Ходы кончились';
+  $('om').textContent=win?`Осталось ходов: ${left}. Следующий уровень сложнее.`:'Попробуйте ещё раз — можно найти путь короче.';
+  $('next').style.display=win?'':'none';
+  $('again').style.display=win?'none':'';
+  setTimeout(()=>$('ov').classList.add('show'),350);
+}
+$('undo').onclick=()=>{if(done&&left>0||!hist.length)return;const h=hist.pop();grid=h.g;left=h.l;done=false;$('ov').classList.remove('show');render()};
+$('restart').onclick=reset;
+$('again').onclick=()=>{$('ov').classList.remove('show');reset()};
+$('next').onclick=newLevel;
+newLevel();
+</script>
+</body>
+</html>
